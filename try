@@ -1,0 +1,12 @@
+import pandas as pd
+
+elec_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=0)
+elec_tech = elec_tech_data.set_index('Technology').agg(list, axis=1).to_dict()
+
+ely_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=1)
+ely_para = ely_tech_data.set_index('Parameter').agg(float, axis=1).to_dict()
+
+infra_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=3)
+infra_para = infra_data.set_index('Infrastructure').agg(list, axis=1).to_dict()
+
+print(infra_para)
