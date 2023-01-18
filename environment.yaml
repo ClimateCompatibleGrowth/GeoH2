@@ -1,0 +1,16 @@
+name: geoh2
+channels:
+  - defaults
+
+dependencies:
+  - python
+  - geopandas
+  - geopy
+  - matplotlib
+  - numpy
+  - pandas
+  - pip
+  - PySimpleGUI
+  - shapely
+  - xlsxwriter
+
