@@ -1,13 +1,13 @@
-from calendar import c, prcal
-from turtle import color, distance
+# from calendar import c, prcal
+# from turtle import color, distance
 import geopandas as gpd
-from matplotlib import markers
-from numpy import minimum
+# from matplotlib import markers
+# from numpy import minimum
 import pandas as pd
 import matplotlib.pyplot as plt                 #see: https://geopandas.org/en/stable/docs/user_guide/mapping.html for plotting
 from functions import *
 from cmath import nan, pi
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Point
 import shapely.geometry
 import shapely.wkt
 import geopy.distance
@@ -15,18 +15,20 @@ import PySimpleGUI as sg
 import math
 from xlsxwriter import Workbook
 
-
-elec_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=0)
+elec_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name= 'Electricity')
 elec_tech = elec_tech_data.set_index('Technology').agg(list, axis=1).to_dict()
 
-ely_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=1)
+ely_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name= 'Electrolysis')
 ely_para = ely_tech_data.set_index('Parameter').agg(float, axis=1).to_dict()
 
-wind_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=2)
+wind_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name='Wind turbine')
 wind_para = wind_tech_data.set_index('Parameter').agg(float, axis=1).to_dict()
 
-infra_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name=3)
+infra_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name='Infra')
 infra_para = infra_data.set_index('Infrastructure').agg(list, axis=1).to_dict()
+
+global_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name='Global')
+global_para = global_data.set_index('Parameter').agg(list, axis=1).to_dict()
 
 sg.theme('Reddit')
 
@@ -103,10 +105,15 @@ for i in range(int(values1[0])):
 
 #Fixed parameter declaration
 
-water_spec_cost = 1.2                       # €/m3
-h2_en_den = 33.33                           #kWh/kgh2
-days_of_storage = 3
-interest = 0.08
+# water_spec_cost = 1.2                       # €/m3
+# h2_en_den = 33.33                           #kWh/kgh2
+# days_of_storage = 3
+# interest = 0.08
+
+water_spec_cost = global_para['Water specific cost (euros/m3)'][0] # €/m3
+h2_en_den = global_para['H2 energy density (kWh/ kg H2)'][0]       #kWh/kgh2
+days_of_storage = global_para['Storage duration (days)'][0]
+interest = global_para['Interest rate'][0]
 
 pv_lifetime = elec_tech['PV'][2]
 pv_opex = elec_tech['PV'][1]                #€/kWp*a
@@ -157,8 +164,7 @@ for i in range(len(hex)):
 
     pv_elec_cost_hex = (((pv_capex/RBF(interest,pv_lifetime))+pv_opex)/hex['pv'][i]/365) * 1000
     pv_elec_cost.append(pv_elec_cost_hex)
-
-
+    #!!! replace this hardcoded number (where does it come from?)
     pv_ely_ratio.append(0.5916057743717814)
 
 
@@ -218,6 +224,7 @@ for i in range(len(hex)):
                 wind_hourly_output.append(0)
         
         else:
+            #!!! where does the 82 come from?
             windspeed_output = 0.5 * cp * den_air * ((82**2)*pi/4) * ((p+1) ** 3) * field_eff * availability
             windspeed_probability = (1-math.exp(-(((p+1+0.5)/A)**2)))-(1-math.exp(-(((p+1-0.5)/A)**2)))
 
@@ -234,7 +241,7 @@ for i in range(len(hex)):
     wind_yearly_output.append(annual_power_output)
     turb_out = annual_power_output / p_turb
     wind_elec_cost_hex = ((wind_capex/RBF(interest,wind_lifetime)+wind_opex)/turb_out) * 1000
-    
+    #!!! where does this cutoff cost come from?
     if wind_elec_cost_hex > 150:
         wind_elec_cost_hex = nan
     wind_elec_cost.append(wind_elec_cost_hex)
@@ -257,6 +264,7 @@ hex['wind_ely_ratio'] = wind_ely_ratio
 hex['wind_output'] = wind_yearly_output
 hex['wind_elec_cost'] = wind_elec_cost
 
+#!!! this is where I will need to input optimized cost based on wind-solar mix
 #Cheapest electricity costs
 cheapest_elec_cost = []
 cheapest_elec_tech = []
@@ -298,7 +306,7 @@ for i in range(len(hex)):
 
 
 hex['power_potential'] = elec_power_pot
-        
+# !!! seems like energy density parameter is hardcoded here        
 for i in range(len(hex)):
     if hex['cheapest_elec_tech'][i] == 'PV' and hex['theo_pv'][i] > 0:
         h2_potential.append(hex['power_potential'][i]*hex['pv_ely_ratio'][i]*ely_eff/33.33)
@@ -322,6 +330,7 @@ if values3['Grid construction'] == True:
     elec_cost_to_connect = []
     for i in range(len(hex)):
         if hex['grid_dist'][i] != 0:
+            #!!! where are these numbers coming from?
             elec_cost_to_connect.append(hex['cheapest_elec_cost'][i]+((hex['grid_dist'][i]*grid_capex/RBF(interest,grid_lifetime))/(2000*8760*0.95*0.9)))
         else:
             elec_cost_to_connect.append(hex['cheapest_elec_cost'][i])
@@ -392,7 +401,7 @@ hex['cheapest_elec_tech'] = cheapest_elec_tech
 h2o_costs_dom_water_bodies = []
 h2o_costs_ocean = []
 h2o_costs = []
-
+# !!! add water costs to excel sheet
 electricity_demand_h2o_treatment = 0.4                                  #kWh/          https://betterbuildingssolutioncenter.energy.gov/sites/default/files/Primer%20on%20energy%20efficiency%20in%20water%20and%20wastewater%20plants_0.pdf
 electricity_demand_h2o_ocean_treatment = 3.7                            #kWh/m3     //https://www.pnas.org/doi/epdf/10.1073/pnas.1902335116, https://essay.utwente.nl/78100/1/Antonyan%2C%20M.%201817078%20_openbaar.pdf, 
 water_transport_costs = 0.1                                             #€/100km/3
@@ -522,7 +531,7 @@ for d in range(len(demand_center_list)):
 
                 if i == demand_fid:
                     if demand_center_list[d][3] == 'NH3':
-                    
+                    # !!! where are the 0.03 values coming from?
                         h2_costs_incl_conversion.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3]+'_load',hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
                         h2_costs_to_demand.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3]+'_load',hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
                         transport_type.append('None')
@@ -772,6 +781,7 @@ NH3_costs_to_demand = []
 
 if values3['ammonia_map'] == True:
     for i in range(len(hex)):
+        # !!! add weight of h2 in NH3 as a varible, maybe in excel?
         h2_weight_NH3 = 0.178       
         NH3_costs_to_demand.append((h2_costs_to_demand[i]+(h2_conversion_stand('NH3_unload',hydrogen_quantity,elec_costs_at_demand/1000,0.03,interest)[2]/hydrogen_quantity))*h2_weight_NH3)
 

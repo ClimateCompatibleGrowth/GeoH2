@@ -7,6 +7,7 @@ import random
 import numpy as np
 import xlsxwriter as xw
 
+# !!! put this conversion in an excel sheet or use USD for all calculations
 usd_to_euro = 0.95
 
 # RBF function
@@ -35,7 +36,7 @@ def cheapest(option1,option2):
 #Transportation annual costs
 
 def transport_500bar(distance,quantity,interest):
-
+    # !!! put these quantities in an excel sheet
     quantity = quantity/365
 
     average_truck_speed = 70                #km/h
@@ -82,6 +83,7 @@ def transport_500bar(distance,quantity,interest):
     return annual_costs
 
 def transport_lh2(distance,quantity,interest):
+    # !!! put these quantities in an excel sheet
 
     quantity = quantity/365
 
@@ -128,6 +130,7 @@ def transport_lh2(distance,quantity,interest):
     return annual_costs
 
 def transport_lohc(distance,quantity,interest):
+    # !!! put these quantities in an excel sheet
 
     quantity = quantity/365
 
@@ -174,6 +177,7 @@ def transport_lohc(distance,quantity,interest):
     return annual_costs
 
 def transport_NH3(distance,quantity,interest):
+    # !!! put these quantities in an excel sheet
 
     quantity = quantity/365
 
@@ -222,7 +226,8 @@ def transport_NH3(distance,quantity,interest):
 #default opex 2% of capex
 
 def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, interestrate):
-    
+    # !!! put these quantities in an excel sheet
+
     h2_throughput = quantity/365/24
 
     if final_state == 'standard condition':
@@ -254,6 +259,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         return elec_demand, heat_demand, annual_costs
 
     elif final_state == 'LH2':
+    # !!! put these quantities in an excel sheet
 
         elec_demand = 9.93 * quantity
         heat_demand = 0
@@ -266,6 +272,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         return elec_demand, heat_demand, annual_costs
 
     elif final_state == 'LOHC_load':
+    # !!! put these quantities in an excel sheet
 
         elec_demand = 0.35 * quantity 
         heat_demand = 0 * quantity                                                 #https://www.hydrogenious.net/index.php/en/hydrogenious-3/lohc-technology/                             
@@ -281,6 +288,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         return elec_demand, heat_demand, annual_costs
 
     elif final_state == 'LOHC_unload':
+    # !!! put these quantities in an excel sheet
 
         elec_demand = 0.35 * quantity 
         heat_demand = 12 * quantity
@@ -294,6 +302,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         return elec_demand, heat_demand, annual_costs
 
     elif final_state == 'NH3_load':
+    # !!! put these quantities in an excel sheet
 
         elec_demand = 2.809 * quantity + 0.3 * quantity                                           #see excel
         heat_demand = 0
@@ -306,6 +315,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
             
         return elec_demand, heat_demand, annual_costs
     elif final_state == 'NH3_unload':
+    # !!! put these quantities in an excel sheet
 
         elec_demand = 4.2 * quantity                                         #see excel
         heat_demand = 0
@@ -388,6 +398,7 @@ def cheapest_dist_option(final_state, quantity, dist, elec_costs, heat_costs, in
 
 #Only new pipelines
 def transport_pipeline(distance,quantity,elec_cost,interest):
+    # !!! put these quantities in an excel sheet
 
     opex = 0.0125                                                           #% of capex per year
     availability = 0.95                                                     #Assumption
@@ -528,6 +539,8 @@ def cheapest_dist_option_pipeline(final_state, quantity, dist, elec_costs, heat_
         return min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3,dist_costs_pipeline)/quantity, cheapest_option
 
 def storage_costs(state,quantity,storagedays,interest):
+    # !!! put these quantities in an excel sheet
+
     opex = 0.02
     lifetime_storage = 20 
 
@@ -552,6 +565,7 @@ def storage_costs(state,quantity,storagedays,interest):
 
 
 
+    # !!! put these quantities in an excel sheet-- what are they for???
 
 demand = [100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000, 1000000000]
 

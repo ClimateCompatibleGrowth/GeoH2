@@ -8,6 +8,7 @@ dependencies:
   - geopy
   - matplotlib
   - numpy
+  - openpyxl
   - pandas
   - pip
   - PySimpleGUI
