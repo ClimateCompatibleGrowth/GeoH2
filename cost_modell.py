@@ -1,3 +1,13 @@
+'''
+Originally written by Leander Müller at RWTH Aachen University
+Updated by Claire Halloran at University of Oxford
+Supported by the Climate Compatible Growth programme
+
+Calculates the cost of hydrogen production in different regions
+to meet different end demands
+
+'''
+
 # from calendar import c, prcal
 # from turtle import color, distance
 import geopandas as gpd
@@ -15,27 +25,41 @@ import PySimpleGUI as sg
 import math
 from xlsxwriter import Workbook
 
-elec_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name= 'Electricity')
-elec_tech = elec_tech_data.set_index('Technology').agg(list, axis=1).to_dict()
+#%% load data from technology parameters Excel file
+# 2D data is a dataframe, 1D data is a series
+elec_tech_data = pd.read_excel("Data/technology_parameters.xlsx",
+                               sheet_name= 'Electricity',
+                               index_col='Technology')
 
-ely_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name= 'Electrolysis')
-ely_para = ely_tech_data.set_index('Parameter').agg(float, axis=1).to_dict()
+ely_tech_data = pd.read_excel("Data/technology_parameters.xlsx",
+                              sheet_name= 'Electrolysis',
+                              index_col='Parameter'
+                              ).squeeze("columns")
 
-wind_tech_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name='Wind turbine')
-wind_para = wind_tech_data.set_index('Parameter').agg(float, axis=1).to_dict()
+wind_tech_data = pd.read_excel("Data/technology_parameters.xlsx",
+                               sheet_name='Wind turbine',
+                               index_col='Parameter'
+                               ).squeeze("columns")
 
-infra_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name='Infra')
-infra_para = infra_data.set_index('Infrastructure').agg(list, axis=1).to_dict()
+infra_data = pd.read_excel("Data/technology_parameters.xlsx",
+                           sheet_name='Infra',
+                           index_col='Infrastructure')
 
-global_data = pd.read_excel("Data/technology_parameters.xlsx",sheet_name='Global')
-global_para = global_data.set_index('Parameter').agg(list, axis=1).to_dict()
+global_data = pd.read_excel("Data/technology_parameters.xlsx",
+                            sheet_name='Global',
+                            index_col='Parameter'
+                            ).squeeze("columns")
 
+#%% prompt user for number of demand scenarios (what are those scenarios?)
 sg.theme('Reddit')
 
 #button_menu = ['File',['Hydrogen state at destination', ['500 bar', 'Liquid H2']]]
 
 
-# How many demand scenarios
+# How many demand scenarios (specify location of demand, unsure which kind of demand)
+# for each scenario, user can specify demand lat-lon, demand for hydrogen in kg
+# !!! change demand to tonnes? kt? try to keep consistent units throughout
+# and hydrogen state at destination
 layout1 = [[sg.Text('Amount of demand scenarios'), sg.InputText()],
            [sg.Submit(), sg.Exit()]]  
 
@@ -48,9 +72,18 @@ amount_list = []
 
 for i in range(int(values1[0])):
     demand_center = str(i+1)
-    amount_list.append([sg.Text('Demand location '+demand_center +":",font=("Helvetica", 12)),sg.Text('Lat',font=("Helvetica", 12)), sg.InputText(default_text='-1.286', size=(10,10),font=("Helvetica", 12)),sg.Text('Lon',font=("Helvetica", 12)), sg.InputText(default_text='36.817', size=(10,10),font=("Helvetica", 12))])
-    amount_list.append([sg.Text('Hydrogen demand '+demand_center +" [kg]:",font=("Helvetica", 12)), sg.InputText(default_text='10000000',font=("Helvetica", 12))])
-    amount_list.append([sg.Text("Hydrogen state at destination",font=("Helvetica", 12)), sg.Combo(['500 bar','LH2','NH3'], default_value='500 bar',font=("Helvetica", 12))])
+    amount_list.append([sg.Text('Demand location '+demand_center +":",font=("Helvetica", 12)),
+                        sg.Text('Lat',font=("Helvetica", 12)), 
+                        sg.InputText(default_text='-1.286', size=(10,10),font=("Helvetica", 12)),
+                        sg.Text('Lon',font=("Helvetica", 12)), 
+                        sg.InputText(default_text='36.817',size=(10,10),font=("Helvetica", 12))])
+    amount_list.append([sg.Text('Hydrogen demand '+demand_center +" [kg]:",font=("Helvetica", 12)),
+                        sg.InputText(default_text='10000000',font=("Helvetica", 12))])
+    amount_list.append([sg.Text("Hydrogen state at destination",
+                                font=("Helvetica", 12)), 
+                                sg.Combo(['500 bar','LH2','NH3'], 
+                                         default_value='500 bar',
+                                         font=("Helvetica", 12))])
 
     amount_list.append([sg.Text()])
 
@@ -64,16 +97,18 @@ window2 = sg.Window('Demand locations').Layout(layout2)
 
 event, values2 = window2.read(close=True)   
 
+# adjust whether different construction is allowed, whether to show cost of ammonia
+# adjust maps produced
+# adjust demand coverage and cheapest production locations (unsure what this means)
 
-#Possible adjustments in
 layout3 = [
                  [sg.Text("Allow grid construction"), sg.Radio('Yes', 'group 3', key='Grid construction', default= True), sg.Radio('No', 'group 3')],
                  [sg.Text("Allow road construction"), sg.Radio('Yes', 'group 4', key='Road construction', default= True), sg.Radio('No', 'group 4')],
                  [sg.Text("Allow pipeline construction"), sg.Radio('Yes', 'group 5', default= True, key='Pipeline construction'), sg.Radio('No', 'group 5')],
-                 [sg.Text("Show costs of Ammonia at destination (only chose yes, if state of destination is NH3)"), sg.Radio('Yes', 'group 2', key='ammonia_map'), sg.Radio('No', 'group 2',default= True)],
+                 [sg.Text("Show costs of ammonia at destination (only chose yes, if state of destination is NH3)"), sg.Radio('Yes', 'group 2', key='ammonia_map'), sg.Radio('No', 'group 2',default= True)],
                  
-                 [sg.Text('Wanted Graphs')],
-                 [sg.Text('Locally prodcution')],
+                 [sg.Text('Maps to produce')],
+                 [sg.Text('Locally production')],
                  [sg.Checkbox('H2 Production costs [€/kg]', key = 'h2_prod_costs'), sg.Checkbox('LCOE [€/MWh]', key = 'cheapest_elec_cost')],
                  [sg.Checkbox('H2 capacity [kt/a]', key = 'h2_potential'), sg.Checkbox('Power generation capacity [TWh/a]', key = 'power_potential')],
 
@@ -103,73 +138,80 @@ for i in range(int(values1[0])):
     
     demand_center_list.append([float(values2[(4*i)]), float(values2[(4*i+1)]), float(values2[(4*i+2)]), values2[(4*i+3)]])
 
-#Fixed parameter declaration
+#%% Fixed parameter declaration from excel file values
 
 # water_spec_cost = 1.2                       # €/m3
 # h2_en_den = 33.33                           #kWh/kgh2
 # days_of_storage = 3
 # interest = 0.08
 
-water_spec_cost = global_para['Water specific cost (euros/m3)'][0] # €/m3
-h2_en_den = global_para['H2 energy density (kWh/ kg H2)'][0]       #kWh/kgh2
-days_of_storage = global_para['Storage duration (days)'][0]
-interest = global_para['Interest rate'][0]
+water_spec_cost = global_data['Water specific cost (euros/m3)'] # €/m3
+h2_en_den = global_data['H2 energy density (kWh/ kg H2)']     #kWh/kgh2
+days_of_storage = global_data['Storage duration (days)']
+interest = global_data['Interest rate']
 
-pv_lifetime = elec_tech['PV'][2]
-pv_opex = elec_tech['PV'][1]                #€/kWp*a
-pv_capex = elec_tech['PV'][0]               #€/kWp
+pv_lifetime = elec_tech_data.at['PV','Lifetime']
+pv_opex = elec_tech_data.at['PV','OPEX']                #€/kWp*a
+pv_capex = elec_tech_data.at['PV','CAPEX']               #€/kWp
 
-wind_lifetime = elec_tech['Wind'][2]
-wind_opex = elec_tech['Wind'][1]            #€/kWp*a
-wind_capex = elec_tech['Wind'][0]           #€/kW
+wind_lifetime = elec_tech_data.at['Wind','Lifetime']
+wind_opex = elec_tech_data.at['Wind','OPEX']            #€/kWp*a
+wind_capex = elec_tech_data.at['Wind','CAPEX']           #€/kW
 
-ely_capex = ely_para['CAPEX']               # €/kW
-ely_stack_replacement = ely_para['Stack']   # €/kW
-ely_opex = ely_para['OPEX']                 # % CAPEX/a
-ely_lt = ely_para['Lifetime']               # a
-ely_eff = ely_para['Efficiency']                                              
-ely_water = ely_para['Water_cons']          #liter/kg
-flh_pv = int(ely_para['Fullload_pv'])            #h
-flh_wind = int(ely_para['Fullload_wind'])        #h
-
-
-
-grid_capex = infra_para['Grid'][0]               
-elec_trans_costs = infra_para['Grid'][1]                #€/MWh PLatzhalter see: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8661478/pdf/main.pdf
-grid_lifetime = infra_para['Grid'][2]                   #years PLATZHALTER
-
-road_capex_long = infra_para['Long road'][0]            #€/km from John Hine, converted to Euro (Assumed earth to paved road)
-road_capex_short = infra_para['Short road'][0]          #€/km for raods < 10 km, from John Hine, converted to Euro (Assumed earth to paved road)
-road_opex = infra_para['Short road'][1]                 #€/km/year from John Hine, converted to Euro (Assumed earth to paved road)
-road_lifetime = infra_para['Short road'][2]             #years, assumption
+ely_capex = ely_tech_data['CAPEX']               # €/kW
+ely_stack_replacement = ely_tech_data['Stack']   # €/kW
+ely_opex = ely_tech_data['OPEX']                 # % CAPEX/a
+ely_lt = ely_tech_data['Lifetime']               # a
+ely_eff = ely_tech_data['Efficiency']                                              
+ely_water = ely_tech_data['Water_cons']          #liter/kg
+flh_pv = int(ely_tech_data['Fullload_pv'])            #h
+flh_wind = int(ely_tech_data['Fullload_wind'])        #h
 
 
 
-#Data Input: Hexagon file
-hex = gpd.read_file('Data/hex_final.geojson')
+grid_capex = infra_data.at['Grid','CAPEX']               
+elec_trans_costs = infra_data.at['Grid','OPEX']                #€/MWh PLatzhalter see: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8661478/pdf/main.pdf
+grid_lifetime = infra_data.at['Grid','Lifetime']                  #years PLATZHALTER
 
-print(hex['theo_turbines'][1077],hex['theo_pv'][1077])
+road_capex_long = infra_data.at['Long road','CAPEX']            #€/km from John Hine, converted to Euro (Assumed earth to paved road)
+road_capex_short = infra_data.at['Short road','CAPEX']         #€/km for raods < 10 km, from John Hine, converted to Euro (Assumed earth to paved road)
+road_opex = infra_data.at['Short road','OPEX']                 #€/km/year from John Hine, converted to Euro (Assumed earth to paved road)
+road_lifetime = infra_data.at['Short road','Lifetime']             #years, assumption
+
+cp = wind_tech_data['cp']                            #Coefficient of performance wind turbine 
+den_air = wind_tech_data['air density']              #Air density in kg/m3
+d_rot = wind_tech_data['rotor diameter']             #Diameter of rotor in kg/m3
+field_eff = wind_tech_data['field efficiency'] 
+availability = wind_tech_data['availability'] 
+p_turb = wind_tech_data['Power turbine'] 
+start_speed = wind_tech_data['Start']                #[m/s]
+switchoff_speed = wind_tech_data['Switch off']       #[m/s]
+
+#%% Data Input: Hexagon file
+hexagon = gpd.read_file('Data/hex_final.geojson')
+
+# print(hexagon['theo_turbines'][1077],hexagon['theo_pv'][1077])
 
 #PV electricty costs
 pv_elec_cost = []
 pv_ely_ratio = []
 
 
-for i in range(len(hex)):
+for i in range(len(hexagon)):
     pv_hourly_output = []
     input_ely_pv = []
 
     pv_hourly_output = []
     input_ely_pv = []
 
-    pv_elec_cost_hex = (((pv_capex/RBF(interest,pv_lifetime))+pv_opex)/hex['pv'][i]/365) * 1000
+    pv_elec_cost_hex = (((pv_capex/RBF(interest,pv_lifetime))+pv_opex)/hexagon['pv'][i]/365) * 1000
     pv_elec_cost.append(pv_elec_cost_hex)
     #!!! replace this hardcoded number (where does it come from?)
     pv_ely_ratio.append(0.5916057743717814)
 
 
-hex['pv_ely_ratio'] = pv_ely_ratio
-hex['pv_elec_cost'] = pv_elec_cost
+hexagon['pv_ely_ratio'] = pv_ely_ratio
+hexagon['pv_elec_cost'] = pv_elec_cost
 
 #Wind electricty costs
 wind_elec_cost = []
@@ -177,21 +219,14 @@ wind_yearly_output = []
 wind_ely_ratio = []
 wind_ely_size = []
 
-cp = wind_para['cp']                            #Coefficient of performance wind turbine 
-den_air = wind_para['air density']              #Air density in kg/m3
-d_rot = wind_para['rotor diameter']             #Diameter of rotor in kg/m3
-field_eff = wind_para['field efficiency'] 
-availability = wind_para['availability'] 
-p_turb = wind_para['Power turbine'] 
-start_speed = wind_para['Start']                #[m/s]
-switchoff_speed = wind_para['Switch off']       #[m/s]
-
-for i in range(len(hex)):
+#%% calculate wind output in each hexagon based on wind speed and assumed distribution
+# also calculate LCOE of wind electricity
+for i in range(len(hexagon)):
 
     wind_hourly_output = []
     input_ely_wind = []
     
-    v_m = hex['wind'][i]                       # [m/s] mean wind speed
+    v_m = hexagon['wind'][i]                       # [m/s] mean wind speed
     A = v_m *(2/(pi**0.5))
     annual_power_output = 0
 
@@ -258,66 +293,57 @@ for i in range(len(hex)):
     #ratio_wind_flh = wind_hourly_output[flh_wind]/p_turb
     #wind_ely_size.append(ratio_wind_flh)
 
+hexagon['wind_ely_ratio'] = wind_ely_ratio
+hexagon['wind_output'] = wind_yearly_output
+hexagon['wind_elec_cost'] = wind_elec_cost
 
-
-hex['wind_ely_ratio'] = wind_ely_ratio
-hex['wind_output'] = wind_yearly_output
-hex['wind_elec_cost'] = wind_elec_cost
-
+#%% identify lowest-cost electricity souce (wind vs solar)
 #!!! this is where I will need to input optimized cost based on wind-solar mix
 #Cheapest electricity costs
 cheapest_elec_cost = []
 cheapest_elec_tech = []
 
-for i in range(len(hex)):
+for i in range(len(hexagon)):
 
-    cheapest_elec_cost.append(cheapest(hex['wind_elec_cost'][i], hex['pv_elec_cost'][i]))
-    if hex['wind_elec_cost'][i] == nan:
+    cheapest_elec_cost.append(cheapest(hexagon['wind_elec_cost'][i], hexagon['pv_elec_cost'][i]))
+    if hexagon['wind_elec_cost'][i] == nan:
         cheapest_elec_tech.append('PV')
-    elif hex['wind_elec_cost'][i]<hex['pv_elec_cost'][i]:
+    elif hexagon['wind_elec_cost'][i]<hexagon['pv_elec_cost'][i]:
         cheapest_elec_tech.append('Wind')
     else:
         cheapest_elec_tech.append('PV')
 
+hexagon['cheapest_elec_tech'] = cheapest_elec_tech
+hexagon['cheapest_elec_cost'] = cheapest_elec_cost
 
-
-hex['cheapest_elec_tech'] = cheapest_elec_tech
-hex['cheapest_elec_cost'] = cheapest_elec_cost
-
-
-#calculating power potential
-
+#%% calculating power potential
 elec_power_pot = []
 h2_potential = []
 
-
-
-for i in range(len(hex)):
-    if hex['cheapest_elec_tech'][i] == 'PV' and hex['theo_pv'][i] >= 1:
-        elec_power_pot.append((hex['theo_pv'][i]*hex['pv'][i]*1000)/1000000)
+for i in range(len(hexagon)):
+    if hexagon['cheapest_elec_tech'][i] == 'PV' and hexagon['theo_pv'][i] >= 1:
+        elec_power_pot.append((hexagon['theo_pv'][i]*hexagon['pv'][i]*1000)/1000000)
         
-
-    elif hex['cheapest_elec_tech'][i] == 'Wind' and hex['theo_turbines'][i] >= 1:
-        elec_power_pot.append((hex['theo_turbines'][i]*hex['wind_output'][i])/1000000)
-
+    elif hexagon['cheapest_elec_tech'][i] == 'Wind' and hexagon['theo_turbines'][i] >= 1:
+        elec_power_pot.append((hexagon['theo_turbines'][i]*hexagon['wind_output'][i])/1000000)
 
     else:
         elec_power_pot.append(nan)
 
 
-hex['power_potential'] = elec_power_pot
+hexagon['power_potential'] = elec_power_pot
 # !!! seems like energy density parameter is hardcoded here        
-for i in range(len(hex)):
-    if hex['cheapest_elec_tech'][i] == 'PV' and hex['theo_pv'][i] > 0:
-        h2_potential.append(hex['power_potential'][i]*hex['pv_ely_ratio'][i]*ely_eff/33.33)
+for i in range(len(hexagon)):
+    if hexagon['cheapest_elec_tech'][i] == 'PV' and hexagon['theo_pv'][i] > 0:
+        h2_potential.append(hexagon['power_potential'][i]*hexagon['pv_ely_ratio'][i]*ely_eff/33.33)
     
-    elif hex['cheapest_elec_tech'][i] == 'Wind' and hex['theo_turbines'][i] > 0:
-        h2_potential.append(hex['power_potential'][i]*hex['wind_ely_ratio'][i]*ely_eff/33.33)
+    elif hexagon['cheapest_elec_tech'][i] == 'Wind' and hexagon['theo_turbines'][i] > 0:
+        h2_potential.append(hexagon['power_potential'][i]*hexagon['wind_ely_ratio'][i]*ely_eff/33.33)
 
     else:
         h2_potential.append(nan)
 
-hex['h2_potential'] = h2_potential
+hexagon['h2_potential'] = h2_potential
         
 
 
@@ -328,36 +354,36 @@ hex['h2_potential'] = h2_potential
 if values3['Grid construction'] == True:
 
     elec_cost_to_connect = []
-    for i in range(len(hex)):
-        if hex['grid_dist'][i] != 0:
+    for i in range(len(hexagon)):
+        if hexagon['grid_dist'][i] != 0:
             #!!! where are these numbers coming from?
-            elec_cost_to_connect.append(hex['cheapest_elec_cost'][i]+((hex['grid_dist'][i]*grid_capex/RBF(interest,grid_lifetime))/(2000*8760*0.95*0.9)))
+            elec_cost_to_connect.append(hexagon['cheapest_elec_cost'][i]+((hexagon['grid_dist'][i]*grid_capex/RBF(interest,grid_lifetime))/(2000*8760*0.95*0.9)))
         else:
-            elec_cost_to_connect.append(hex['cheapest_elec_cost'][i])
+            elec_cost_to_connect.append(hexagon['cheapest_elec_cost'][i])
 
     
     elec_cost_at_grid = []
-    for i in range(len(hex)):
-        if hex['grid_dist'][i] == 0:
-            elec_cost_at_grid.append(hex['cheapest_elec_cost'][i])
+    for i in range(len(hexagon)):
+        if hexagon['grid_dist'][i] == 0:
+            elec_cost_at_grid.append(hexagon['cheapest_elec_cost'][i])
     
     
     cheapest_elec_cost_grid = []
     if min(elec_cost_at_grid) == min(elec_cost_to_connect):
 
-        for i in range(len(hex)):
-            if hex['grid_dist'][i] == 0:
+        for i in range(len(hexagon)):
+            if hexagon['grid_dist'][i] == 0:
                 cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], (min(elec_cost_at_grid)+elec_trans_costs)))
                 if (min(elec_cost_at_grid)+elec_trans_costs) < cheapest_elec_cost[i]:
                     cheapest_elec_tech[i] = 'Grid'
             else:
-                cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], (min(elec_cost_at_grid)+elec_trans_costs+((hex['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime)))))
+                cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], (min(elec_cost_at_grid)+elec_trans_costs+((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime)))))
                 #cheapest_elec_cost_grid.append(cheapest_elec_cost[i])
-                if (min(elec_cost_at_grid)+elec_trans_costs+((hex['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime))) < cheapest_elec_cost[i]:
+                if (min(elec_cost_at_grid)+elec_trans_costs+((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime))) < cheapest_elec_cost[i]:
                     cheapest_elec_tech[i] = 'Grid'
     else:
-        for i in range(len(hex)):
-            if hex['grid_dist'][i] == 0:
+        for i in range(len(hexagon)):
+            if hexagon['grid_dist'][i] == 0:
                 cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i],min(elec_cost_to_connect)+elec_trans_costs))
                 if (min(elec_cost_to_connect)+elec_trans_costs) < cheapest_elec_cost[i]:
                     cheapest_elec_tech[i] = 'Grid'
@@ -365,19 +391,19 @@ if values3['Grid construction'] == True:
             elif i == min(range(len(elec_cost_to_connect)), key=elec_cost_to_connect.__getitem__):
                 cheapest_elec_cost_grid.append(cheapest_elec_cost[i])
             else:
-                cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], (min(elec_cost_to_connect)+elec_trans_costs+((hex['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime)))))
-                if (min(elec_cost_to_connect)+elec_trans_costs+((hex['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime))) < cheapest_elec_cost[i]:
+                cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], (min(elec_cost_to_connect)+elec_trans_costs+((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime)))))
+                if (min(elec_cost_to_connect)+elec_trans_costs+((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime))) < cheapest_elec_cost[i]:
                     cheapest_elec_tech[i] = 'Grid'
 else:
     cheapest_elec_cost_grid = []
     elec_cost_at_grid = []
 
-    for i in range(len(hex)):
-        if hex['grid_dist'][i] == 0:
-            elec_cost_at_grid.append(hex['cheapest_elec_cost'][i])
+    for i in range(len(hexagon)):
+        if hexagon['grid_dist'][i] == 0:
+            elec_cost_at_grid.append(hexagon['cheapest_elec_cost'][i])
 
-    for i in range(len(hex)):
-        if hex['grid_dist'][i] == 0:
+    for i in range(len(hexagon)):
+        if hexagon['grid_dist'][i] == 0:
             cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], (min(elec_cost_at_grid)+elec_trans_costs)))
             if (min(elec_cost_at_grid)+elec_trans_costs) < cheapest_elec_cost[i]:
                 cheapest_elec_tech[i] = 'Grid'
@@ -386,16 +412,16 @@ else:
             #cheapest_elec_cost_grid.append(cheapest_elec_cost[i])
 
 
-hex['cheapest_elec_cost'] = cheapest_elec_cost_grid
+hexagon['cheapest_elec_cost'] = cheapest_elec_cost_grid
 
 
-#for i in range(len(hex)):
+#for i in range(len(hexagon)):
 
 #    if cheapest_elec_cost_grid[i] != cheapest_elec_cost[i]:
 #        cheapest_elec_tech[i] = 'Grid'
 
 
-hex['cheapest_elec_tech'] = cheapest_elec_tech
+hexagon['cheapest_elec_tech'] = cheapest_elec_tech
 
 
 h2o_costs_dom_water_bodies = []
@@ -407,40 +433,40 @@ electricity_demand_h2o_ocean_treatment = 3.7                            #kWh/m3 
 water_transport_costs = 0.1                                             #€/100km/3
 water_spec_cost = 1.25                                                  #€/m3
 
-for i in range(len(hex)):
-    h2o_costs_dom_water_bodies.append(((water_spec_cost + (water_transport_costs/100)*min(hex['waterbody_dist'][i],hex['waterway_dist'][i]) + electricity_demand_h2o_treatment*(hex['cheapest_elec_cost'][i]/1000)*ely_water)/1000))
+for i in range(len(hexagon)):
+    h2o_costs_dom_water_bodies.append(((water_spec_cost + (water_transport_costs/100)*min(hexagon['waterbody_dist'][i],hexagon['waterway_dist'][i]) + electricity_demand_h2o_treatment*(hexagon['cheapest_elec_cost'][i]/1000)*ely_water)/1000))
 
-for i in range(len(hex)):
-    h2o_costs_ocean.append(((water_spec_cost + (water_transport_costs/100)*hex['ocean_dist'][i] + electricity_demand_h2o_ocean_treatment*(hex['cheapest_elec_cost'][i]/1000)*ely_water)/1000))
+for i in range(len(hexagon)):
+    h2o_costs_ocean.append(((water_spec_cost + (water_transport_costs/100)*hexagon['ocean_dist'][i] + electricity_demand_h2o_ocean_treatment*(hexagon['cheapest_elec_cost'][i]/1000)*ely_water)/1000))
 
-for i in range(len(hex)):
+for i in range(len(hexagon)):
     h2o_costs.append(min(h2o_costs_dom_water_bodies[i],h2o_costs_ocean[i]))
 
 h2_prod_costs = []
 
 
-for i in range(len(hex)):
-    if hex['cheapest_elec_tech'][i] == 'PV' and hex['theo_pv'][i] >= 1:
+for i in range(len(hexagon)):
+    if hexagon['cheapest_elec_tech'][i] == 'PV' and hexagon['theo_pv'][i] >= 1:
         ely_costs = ((((ely_capex+ely_stack_replacement)/RBF(interest,ely_lt))/(flh_pv))*(h2_en_den/ely_eff))*(1 + ely_opex)
-        h2_prod_costs.append(((hex['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)
+        h2_prod_costs.append(((hexagon['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)
     
-    elif hex['cheapest_elec_tech'][i] == 'Wind' and hex['theo_turbines'][i] >= 1:
+    elif hexagon['cheapest_elec_tech'][i] == 'Wind' and hexagon['theo_turbines'][i] >= 1:
         ely_costs = ((((ely_capex+ely_stack_replacement)/RBF(interest,ely_lt))/(flh_wind))*(h2_en_den/ely_eff))*(1 + ely_opex)
-        h2_prod_costs.append(((hex['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)
+        h2_prod_costs.append(((hexagon['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)
     
-    elif hex['cheapest_elec_tech'][i] == 'Grid':
+    elif hexagon['cheapest_elec_tech'][i] == 'Grid':
         ely_costs = ((((ely_capex+ely_stack_replacement)/RBF(interest,ely_lt))/(flh_wind))*(h2_en_den/ely_eff))*(1 + ely_opex)
-        h2_prod_costs.append(((hex['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)        
+        h2_prod_costs.append(((hexagon['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)        
 
     else: 
         h2_prod_costs.append(nan)
 
 
-hex['h2_prod_costs'] = h2_prod_costs
+hexagon['h2_prod_costs'] = h2_prod_costs
 
 
 
-#print(hex)
+#print(hexagon)
 #print(max(h2_prod_costs))
 #print(min(h2o_costs_dom_water_bodies))
 
@@ -459,11 +485,11 @@ for d in range(len(demand_center_list)):
 
     distance_to_demand = []
 
-    for i in range(len(hex)):
+    for i in range(len(hexagon)):
         
         #Method takes to long so far
         #supply centre
-        #poly = shapely.wkt.loads(str(hex['geometry'][i]))
+        #poly = shapely.wkt.loads(str(hexagon['geometry'][i]))
         #center = poly.centroid
         #coords_1 = (-4.039286378400124, 39.66007221012109)
         #coords_1 = (lat,lon)
@@ -482,7 +508,7 @@ for d in range(len(demand_center_list)):
         #print(i)
 
 
-        poly = shapely.wkt.loads(str(hex['geometry'][i]))
+        poly = shapely.wkt.loads(str(hexagon['geometry'][i]))
         center = poly.centroid
         #coords_1 = (-4.039286378400124, 39.66007221012109)
         coords_1 = (lat,lon)
@@ -499,11 +525,11 @@ for d in range(len(demand_center_list)):
     demand_location = Point(float(lon),float(lat))
     demand_fid = 0
 
-    for i in range(len(hex)):
-        if hex['geometry'][i].contains(demand_location) == True:
+    for i in range(len(hexagon)):
+        if hexagon['geometry'][i].contains(demand_location) == True:
             demand_fid = i
 
-    elec_costs_at_demand = float(hex['cheapest_elec_cost'][demand_fid])/1000
+    elec_costs_at_demand = float(hexagon['cheapest_elec_cost'][demand_fid])/1000
 
 
     hydrogen_quantity = demand_center_list[d][2]
@@ -512,13 +538,13 @@ for d in range(len(demand_center_list)):
     road_construction_costs = []
     transport_type = []
 
-    for i in range(len(hex)):
-        if hex['road_dist'][i]==0:
+    for i in range(len(hexagon)):
+        if hexagon['road_dist'][i]==0:
             road_construction_costs.append(0)
-        elif hex['road_dist'][i]!=0 and hex['road_dist'][i]<10:
-            road_construction_costs.append(((hex['road_dist'][i]*road_capex_short)/(RBF(interest,road_lifetime)))+(hex['road_dist'][i]*road_opex))
+        elif hexagon['road_dist'][i]!=0 and hexagon['road_dist'][i]<10:
+            road_construction_costs.append(((hexagon['road_dist'][i]*road_capex_short)/(RBF(interest,road_lifetime)))+(hexagon['road_dist'][i]*road_opex))
         else:
-            road_construction_costs.append(((hex['road_dist'][i]*road_capex_long)/(RBF(interest,road_lifetime)))+(hex['road_dist'][i]*road_opex))
+            road_construction_costs.append(((hexagon['road_dist'][i]*road_capex_long)/(RBF(interest,road_lifetime)))+(hexagon['road_dist'][i]*road_opex))
 
 
     
@@ -526,20 +552,20 @@ for d in range(len(demand_center_list)):
     if values3['Pipeline construction'] == True: 
         if values3['Road construction'] == True:
 
-            for i in range(len(hex)):
+            for i in range(len(hexagon)):
 
 
                 if i == demand_fid:
                     if demand_center_list[d][3] == 'NH3':
                     # !!! where are the 0.03 values coming from?
-                        h2_costs_incl_conversion.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3]+'_load',hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
-                        h2_costs_to_demand.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3]+'_load',hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                        h2_costs_incl_conversion.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3]+'_load',hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                        h2_costs_to_demand.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3]+'_load',hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
                         transport_type.append('None')
 
                     else:
 
-                        h2_costs_incl_conversion.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
-                        h2_costs_to_demand.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                        h2_costs_incl_conversion.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                        h2_costs_to_demand.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
                         transport_type.append('None')
 
 
@@ -589,17 +615,17 @@ for d in range(len(demand_center_list)):
                 
 
         else: 
-            for i in range(len(hex)):
+            for i in range(len(hexagon)):
 
                 if i == demand_fid:
 
-                    h2_costs_incl_conversion.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
-                    h2_costs_to_demand.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                    h2_costs_incl_conversion.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                    h2_costs_to_demand.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
                     transport_type.append('None')
 
                 else:
 
-                    if hex['road_dist'][i]==0:
+                    if hexagon['road_dist'][i]==0:
                         if demand_center_list[d][3] == '500 bar':
                             h2_costs_to_demand.append(h2_prod_costs[i]+cheapest_dist_option_pipeline('500 bar', hydrogen_quantity, distance_to_demand[i], cheapest_elec_cost[i]/1000, 0.03, interest, elec_costs_at_demand, min(cheapest_elec_cost_grid)/1000,days_of_storage)[0])
                             
@@ -673,12 +699,12 @@ for d in range(len(demand_center_list)):
 
     else:
         if values3['Road construction'] == True:
-            for i in range(len(hex)):
+            for i in range(len(hexagon)):
 
                 if i == demand_fid:
 
-                    h2_costs_incl_conversion.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
-                    h2_costs_to_demand.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                    h2_costs_incl_conversion.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                    h2_costs_to_demand.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
 
                 else:
                 
@@ -721,16 +747,16 @@ for d in range(len(demand_center_list)):
             
 
         else: 
-            for i in range(len(hex)):
+            for i in range(len(hexagon)):
 
                 if i == demand_fid:
 
-                    h2_costs_incl_conversion.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
-                    h2_costs_to_demand.append(hex['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                    h2_costs_incl_conversion.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
+                    h2_costs_to_demand.append(hexagon['h2_prod_costs'][i]+h2_conversion_stand(demand_center_list[d][3],hydrogen_quantity,cheapest_elec_cost[i]/1000,0.03,interest)[2]/hydrogen_quantity)
 
                 else:
     
-                    if hex['road_dist'][i]==0:
+                    if hexagon['road_dist'][i]==0:
                         if demand_center_list[d][3] == '500 bar':
                             h2_costs_to_demand.append(h2_prod_costs[i]+cheapest_dist_option('500 bar', hydrogen_quantity, distance_to_demand[i], cheapest_elec_cost[i]/1000, 0.03, interest, elec_costs_at_demand,days_of_storage)[0])
                             
@@ -771,30 +797,30 @@ for d in range(len(demand_center_list)):
 
     #h2_costs_to_demand = [round(num, 1) for num in h2_costs_to_demand]
 
-    hex['h2_costs_to_demand' + str(d)] = h2_costs_to_demand
-    hex['h2_costs_incl_conv' + str(d)] = h2_costs_incl_conversion
-    hex['transport_type' + str(d)] = transport_type
+    hexagon['h2_costs_to_demand' + str(d)] = h2_costs_to_demand
+    hexagon['h2_costs_incl_conv' + str(d)] = h2_costs_incl_conversion
+    hexagon['transport_type' + str(d)] = transport_type
 
 
 #print(distance_to_demand)
 NH3_costs_to_demand = []
 
 if values3['ammonia_map'] == True:
-    for i in range(len(hex)):
+    for i in range(len(hexagon)):
         # !!! add weight of h2 in NH3 as a varible, maybe in excel?
         h2_weight_NH3 = 0.178       
         NH3_costs_to_demand.append((h2_costs_to_demand[i]+(h2_conversion_stand('NH3_unload',hydrogen_quantity,elec_costs_at_demand/1000,0.03,interest)[2]/hydrogen_quantity))*h2_weight_NH3)
 
 
-    hex['NH3_costs_to_demand'] = NH3_costs_to_demand
+    hexagon['NH3_costs_to_demand'] = NH3_costs_to_demand
 
 
 #See results and prepare plots
-#print(hex)
+#print(hexagon)
 hex_sort = {}
 for d in range(len(demand_center_list)):
 
-    hex_sort[d] = hex.sort_values(by=['h2_costs_to_demand' + str(d)]).head(100)
+    hex_sort[d] = hexagon.sort_values(by=['h2_costs_to_demand' + str(d)]).head(100)
 
 #print(hex_sort)
 #gpd.hex_sort.to_excel()
@@ -802,16 +828,16 @@ for d in range(len(demand_center_list)):
 
 h2_costs_to_demand = []
 
-for i in range(len(hex)):
+for i in range(len(hexagon)):
     options = []
 
     for d in range(len(demand_center_list)):
-        options.append((hex['h2_costs_to_demand' + str(d)][i]))
+        options.append((hexagon['h2_costs_to_demand' + str(d)][i]))
     
     h2_costs_to_demand.append(min(options))
         
 
-hex['h2_costs_to_demand'] = h2_costs_to_demand
+hexagon['h2_costs_to_demand'] = h2_costs_to_demand
 # create excel writer object
 #minimal_cost = pd.ExcelWriter('output.xlsx')
 # write dataframe to excel
@@ -846,7 +872,7 @@ supply_demand = dict.fromkeys(list_keys)
 
 supply_loc = {}
 
-hex['h2_cap_after_supply'] = hex['h2_potential']
+hexagon['h2_cap_after_supply'] = hexagon['h2_potential']
 
 for d in range(len(demand_center_list)):
     supply = 0
@@ -855,17 +881,17 @@ for d in range(len(demand_center_list)):
     index_list = list(hex_sort[d]['h2_costs_to_demand' +str(d)].index.values)
 
     while supply < float(demand_center_list[d][2]):
-        if hex['h2_potential'][index_list[nr]]*1000000 > 0:
-            if hex['h2_potential'][index_list[nr]]*1000000 >= (float(demand_center_list[d][2]) - supply):
+        if hexagon['h2_potential'][index_list[nr]]*1000000 > 0:
+            if hexagon['h2_potential'][index_list[nr]]*1000000 >= (float(demand_center_list[d][2]) - supply):
                 coverage = (float(demand_center_list[d][2]) - supply)
                 supply = supply + coverage
-                hex['h2_potential'][index_list[nr]] = hex['h2_potential'][index_list[nr]] - (coverage/1000000)
+                hexagon['h2_potential'][index_list[nr]] = hexagon['h2_potential'][index_list[nr]] - (coverage/1000000)
                 supply_list.append(index_list[nr])
                 nr = nr + 1
             else:
-                coverage = hex['h2_potential'][index_list[nr]]*1000000
-                supply = supply + hex['h2_potential'][index_list[nr]]*1000000
-                hex['h2_potential'][index_list[nr]] = 0 
+                coverage = hexagon['h2_potential'][index_list[nr]]*1000000
+                supply = supply + hexagon['h2_potential'][index_list[nr]]*1000000
+                hexagon['h2_potential'][index_list[nr]] = 0 
                 supply_list.append(index_list[nr])
                 nr = nr + 1
         else:
@@ -884,7 +910,7 @@ if values3['demand_cov'] == True:
         ax.plot(float(demand_center_list[d][1]), float(demand_center_list[d][0]), color= "black", markersize= 10, marker = "1", label='Demand center',linestyle="None")
         
         for s in supply_loc[d]:
-            poly = shapely.wkt.loads(str(hex['geometry'][s]))
+            poly = shapely.wkt.loads(str(hexagon['geometry'][s]))
             center = poly.centroid
             ax.plot(center.x, center.y, markersize= 7, marker = "h", label='Demand center',linestyle="None")
             plt.plot([float(demand_center_list[d][1]),center.x], [float(demand_center_list[d][0]),center.y])
@@ -907,7 +933,7 @@ for i in map_list:
 for i in range(len(map_list)):
     if values3[map_list[i]] == True: 
         figure, ax = plt.subplots(1, 1)
-        hex.plot(column= map_list[i], legend = True, cmap= colour_dict[map_list[i]], ax=ax)
+        hexagon.plot(column= map_list[i], legend = True, cmap= colour_dict[map_list[i]], ax=ax)
 
         plt.title(map_titel[map_list[i]])
 
@@ -928,11 +954,11 @@ for d in range(len(demand_center_list)):
 
 # write dataframe to excel
 #for d in range(len(demand_center_list)):
-    #hex = hex.sort_values(by=['h2_costs_to_demand' + str(d)])
-    #hex['h2_prod_costs'].to_excel(output ,sheet_name = str(d), startcol=0)
-    #hex['transport_type'+ str(d)].to_excel(output, sheet_name = str(d), startcol=2, index=False)
-    #hex['h2_costs_incl_conv' + str(d)].to_excel(output, sheet_name = str(d), startcol=3, index=False)
-    #hex['h2_costs_to_demand' + str(d)].to_excel(output, sheet_name = str(d), startcol=4, index=False)
+    #hexagon = hexagon.sort_values(by=['h2_costs_to_demand' + str(d)])
+    #hexagon['h2_prod_costs'].to_excel(output ,sheet_name = str(d), startcol=0)
+    #hexagon['transport_type'+ str(d)].to_excel(output, sheet_name = str(d), startcol=2, index=False)
+    #hexagon['h2_costs_incl_conv' + str(d)].to_excel(output, sheet_name = str(d), startcol=3, index=False)
+    #hexagon['h2_costs_to_demand' + str(d)].to_excel(output, sheet_name = str(d), startcol=4, index=False)
 
 #    result_dict[d].to_excel(output ,sheet_name = str(d), startcol=0)
 
