@@ -12,7 +12,7 @@ to meet different end demands
 # from turtle import color, distance
 import geopandas as gpd
 # from matplotlib import markers
-# from numpy import minimum
+from numpy import nanmin
 import pandas as pd
 import matplotlib.pyplot as plt                 #see: https://geopandas.org/en/stable/docs/user_guide/mapping.html for plotting
 from functions import *
@@ -327,8 +327,8 @@ cheapest_elec_cost = []
 cheapest_elec_tech = []
 
 for i in range(len(hexagon)):
-
-    cheapest_elec_cost.append(cheapest(hexagon['wind_elec_cost'][i], hexagon['pv_elec_cost'][i]))
+    cheapest_elec_cost.append(nanmin([hexagon['wind_elec_cost'][i], hexagon['pv_elec_cost'][i]]))
+    # cheapest_elec_cost.append(cheapest(hexagon['wind_elec_cost'][i], hexagon['pv_elec_cost'][i]))
     if hexagon['wind_elec_cost'][i] == nan:
         cheapest_elec_tech.append('PV')
     elif hexagon['wind_elec_cost'][i]<hexagon['pv_elec_cost'][i]:

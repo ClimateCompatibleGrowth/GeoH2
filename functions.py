@@ -1,74 +1,123 @@
 
-from gurobipy import *
-import gurobipy as gp
-from gurobipy import GRB
+# from gurobipy import *
+# import gurobipy as gp
+# from gurobipy import GRB
 import pandas as pd
-import random
+# import random
 import numpy as np
-import xlsxwriter as xw
+# import xlsxwriter as xw
 
 # !!! put this conversion in an excel sheet or use USD for all calculations
 usd_to_euro = 0.95
 
 # RBF function
 
-def RBF(zins,lt):
+def RBF(interest,lifetime):
+    '''
+    Calculates the annualized cost of a capital investment
+    as a share of its overnight cost.
 
-    zins = float(zins)
-    lt = float(lt)
+    Parameters
+    ----------
+    interest : float
+        interest rate.
+    lifetime : float or integer
+        lifetime of asset.
 
-    rbf = (((1+zins)**lt)-1)/(((1+zins)**lt)*zins)
+    Returns
+    -------
+    rbf : float
+        annualized cost as share of overnight cost.
+
+    '''
+    interest = float(interest)
+    lifetime = float(lifetime)
+
+    rbf = (((1+interest)**lifetime)-1)/(((1+interest)**lifetime)*interest)
     return rbf
 
 
 # Minimum function
+# replace this with numpy nanmin
 
-def cheapest(option1,option2):
-    if option1<option2:
-        return option1
-    elif option1 == 'Nan':
-        return option2
-    elif option2 == 'Nan':
-        return option1
-    else:
-        return option2
+# def cheapest(option1,option2):
+#     if option1<option2:
+#         return option1
+#     elif option1 == 'Nan':
+#         return option2
+#     elif option2 == 'Nan':
+#         return option1
+#     else:
+#         return option2
 
 #Transportation annual costs
 
-def transport_500bar(distance,quantity,interest):
-    # !!! put these quantities in an excel sheet
+###!!! experimental transport cost function for all transport states
+transport_excel_path = "Data/transport_parameters.xlsx"
+
+def transport_costs(transport_state, distance, quantity, interest, excel_path):
+    '''
+    calculates the annual cost of transporting hydrogen by truck.
+
+    Parameters
+    ----------
+    transport_state : string
+        state hydrogen is transported in, one of '500 bar', 'LH2', 'LOHC', or 'NH3'.
+    distance : float
+        distance between hydrogen production site and demand site.
+    quantity : float
+        annual amount of hydrogen to transport.
+    interest : float
+        interest rate on capital investments.
+    excel_path : string
+        path to transport_parameters.xlsx file
+        
+    Returns
+    -------
+    annual_costs : float
+        annual cost of hydrogen transport with specified method.
+    '''
+    # !!! pull these quantities from excel sheet
     quantity = quantity/365
 
-    average_truck_speed = 70                #km/h
-    working_hours = 24                      #h/day
-    diesel_price = 1.5                      #€/l
-    costs_for_driver = 2.85                   #€/h
-    working_days = 365                      #per year
-    max_driving_dist = 160000               #km/a Maximum driving distance per truck per year
+    transport_parameters = pd.read_excel(excel_path,
+                                         sheet_name = transport_state,
+                                         index_col = 'Parameter'
+                                         ).squeeze('columns')
 
-    spec_capex_truck = 160000               #€
-    spec_opex_truck = 0.12                  #% of CAPEX/a
-    diesel_consumption = 35                 #l/100km
-    truck_lifetime = 8                      #a
+    average_truck_speed = transport_parameters['Average truck speed (km/h)']                #km/h
+    working_hours = transport_parameters['Working hours (h/day)']                     #h/day
+    diesel_price = transport_parameters['Diesel price (euros/L)']                    #€/l
+    costs_for_driver = transport_parameters['Costs for driver (euros/h)']                  #€/h
+    working_days = transport_parameters['Working days (per year)']                      #per year
+    max_driving_dist = transport_parameters['Max driving distance (km/a)']               #km/a Maximum driving distance per truck per year
 
-    spec_capex_trailor = 660000
-    spec_opex_trailor = 0.02
-    net_capacity = 1100                     #kgh2
-    trailor_lifetime = 12                   #a
-    loading_unloading_time = 1.5            #hours 
+    spec_capex_truck = transport_parameters['Spec capex truck (euros)']               #€
+    spec_opex_truck = transport_parameters['Spec opex truck (% of capex/a)']                  #% of CAPEX/a
+    diesel_consumption = transport_parameters['Diesel consumption (L/100 km)']                 #l/100km
+    truck_lifetime = transport_parameters['Truck lifetime (a)']                      #a
+
+    spec_capex_trailor = transport_parameters['Spec capex trailer (euros)']
+    spec_opex_trailor =transport_parameters['Spec opex trailer (% of capex/a)']
+    net_capacity = transport_parameters['Net capacity (kg H2)']                     #kgh2
+    trailor_lifetime = transport_parameters['Trailer lifetime (a)']                   #a
+    loading_unloading_time = transport_parameters['Loading unloading time (h)']            #hours 
 
 
-    max_day_dist = max_driving_dist/working_days
+    # max_day_dist = max_driving_dist/working_days
     amount_deliveries_needed = quantity/net_capacity
     deliveries_per_truck = working_hours/(loading_unloading_time+(2*distance/average_truck_speed))
     trailors_needed = round((amount_deliveries_needed/deliveries_per_truck)+0.5,0)
-    total_drives_day = round(amount_deliveries_needed+0.5,0)
-    trucks_needed = max(round((total_drives_day*2*distance*working_days/max_driving_dist)+0.5,0),trailors_needed)
+    total_drives_day = round(amount_deliveries_needed+0.5,0) # not in ammonia calculation
+    if transport_state == 'NH3': #!!! double checking if this is needed with Leander
+        trucks_needed = trailors_needed
+    else:
+        trucks_needed = max(round((total_drives_day*2*distance*working_days/max_driving_dist)+0.5,0),trailors_needed)
 
     capex_trucks = trucks_needed * spec_capex_truck
     capex_trailor = trailors_needed * spec_capex_trailor
-    capex_total = capex_trailor + capex_trucks
-
+    # capex_total = capex_trailor + capex_trucks
+    # this if statement seems suspect to me-- how can a fractional number of deliveries be completed?
     if amount_deliveries_needed < 1:
         fuel_costs = (amount_deliveries_needed*2*distance*365/100)*diesel_consumption*diesel_price
         wages = amount_deliveries_needed * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
@@ -77,147 +126,9 @@ def transport_500bar(distance,quantity,interest):
         fuel_costs = (round(amount_deliveries_needed+0.5)*2*distance*365/100)*diesel_consumption*diesel_price
         wages = round(amount_deliveries_needed+0.5) * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
 
-
-
-    annual_costs = (capex_trucks/RBF(interest,truck_lifetime)+capex_trailor/RBF(interest,trailor_lifetime)) + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
+    annual_costs = (capex_trucks/RBF(interest,truck_lifetime)+capex_trailor/RBF(interest,trailor_lifetime))\
+        + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
     return annual_costs
-
-def transport_lh2(distance,quantity,interest):
-    # !!! put these quantities in an excel sheet
-
-    quantity = quantity/365
-
-    average_truck_speed = 70                #km/h
-    working_hours = 24                      #h/day
-    diesel_price = 1.5                      #€/l
-    costs_for_driver = 2.85                 #€/h
-    working_days = 365
-    max_driving_dist = 160000               #km/a Maximum driving distance per truck per year
-
-    spec_capex_truck = 160000               #€
-    spec_opex_truck = 0.12                  #% of CAPEX/a
-    diesel_consumption = 35                 #l/100km
-    truck_lifetime = 8                      #a
-
-    spec_capex_trailor = 860000
-    spec_opex_trailor = 0.02
-    net_capacity = 4300                     #kgh2
-    trailor_lifetime = 12                   #a
-    loading_unloading_time = 3              #hours 
-
-
-    max_day_dist = max_driving_dist/working_days
-    amount_deliveries_needed = quantity/net_capacity
-    deliveries_per_truck = working_hours/(loading_unloading_time+(2*distance/average_truck_speed))
-    trailors_needed = round((amount_deliveries_needed/deliveries_per_truck)+0.5,0)
-    total_drives_day = round(amount_deliveries_needed+0.5,0)
-    trucks_needed = max(round((total_drives_day*2*distance*working_days/max_driving_dist)+0.5,0),trailors_needed)
-
-    capex_trucks = trucks_needed * spec_capex_truck
-    capex_trailor = trailors_needed * spec_capex_trailor
-    capex_total = capex_trailor + capex_trucks
-
-    if amount_deliveries_needed < 1:
-        fuel_costs = (amount_deliveries_needed*2*distance*365/100)*diesel_consumption*diesel_price
-        wages = amount_deliveries_needed * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
-    
-    else:
-        fuel_costs = (round(amount_deliveries_needed+0.5)*2*distance*365/100)*diesel_consumption*diesel_price
-        wages = round(amount_deliveries_needed+0.5) * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
-
-
-    annual_costs = (capex_trucks/RBF(interest,truck_lifetime)+capex_trailor/RBF(interest,trailor_lifetime)) + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
-    return annual_costs
-
-def transport_lohc(distance,quantity,interest):
-    # !!! put these quantities in an excel sheet
-
-    quantity = quantity/365
-
-    average_truck_speed = 70                #km/h
-    working_hours = 24                      #h/day
-    diesel_price = 1.5                      #€/l
-    costs_for_driver = 2.85                 #€/h
-    working_days = 365
-    max_driving_dist = 160000               #km/a Maximum driving distance per truck per year
-
-    spec_capex_truck = 160000               #€
-    spec_opex_truck = 0.12                  #% of CAPEX/a
-    diesel_consumption = 35                 #l/100km
-    truck_lifetime = 8                      #a
-
-    spec_capex_trailor = 150000
-    spec_opex_trailor = 0.02
-    net_capacity = 1800                     #kgh2
-    trailor_lifetime = 12                   #a
-    loading_unloading_time = 1.5            #hours 
-
-
-    max_day_dist = max_driving_dist/working_days
-    amount_deliveries_needed = quantity/net_capacity
-    deliveries_per_truck = working_hours/(loading_unloading_time+(2*distance/average_truck_speed))
-    trailors_needed = round((amount_deliveries_needed/deliveries_per_truck)+0.5,0)
-    total_drives_day = round(amount_deliveries_needed+0.5,0)
-    trucks_needed = max(round((total_drives_day*2*distance*working_days/max_driving_dist)+0.5,0),trailors_needed)
-
-    capex_trucks = trucks_needed * spec_capex_truck
-    capex_trailor = trailors_needed * spec_capex_trailor
-    capex_total = capex_trailor + capex_trucks
-
-    if amount_deliveries_needed < 1:
-        fuel_costs = (amount_deliveries_needed*2*distance*365/100)*diesel_consumption*diesel_price
-        wages = amount_deliveries_needed * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
-    
-    else:
-        fuel_costs = (round(amount_deliveries_needed+0.5)*2*distance*365/100)*diesel_consumption*diesel_price
-        wages = round(amount_deliveries_needed+0.5) * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
-
-
-    annual_costs = (capex_trucks/RBF(interest,truck_lifetime)+capex_trailor/RBF(interest,trailor_lifetime)) + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
-    return annual_costs
-
-def transport_NH3(distance,quantity,interest):
-    # !!! put these quantities in an excel sheet
-
-    quantity = quantity/365
-
-    average_truck_speed = 70                #km/h
-    working_hours = 24                      #h/day
-    diesel_price = 1.5                      #€/l
-    costs_for_driver = 20                   #€/h
-    working_days = 365      
-
-    spec_capex_truck = 160000               #€
-    spec_opex_truck = 0.12                  #% of CAPEX/a
-    diesel_consumption = 35                 #l/100km
-    truck_lifetime = 12                     #a
-
-    spec_capex_trailor = 190000
-    spec_opex_trailor = 0.02
-    net_capacity = 2600                     #kgh2
-    trailor_lifetime = truck_lifetime       #a
-    loading_unloading_time = 1.5            #hours 
-
-
-    amount_deliveries_needed = quantity/net_capacity
-    deliveries_per_truck = working_hours/(loading_unloading_time+(2*distance/average_truck_speed))
-    trucks_trailors_needed = round((amount_deliveries_needed/deliveries_per_truck)+0.5,0)
-
-    capex_trucks = trucks_trailors_needed * spec_capex_truck
-    capex_trailor = trucks_trailors_needed * spec_capex_trailor
-    capex_total = capex_trailor + capex_trucks
-
-    if amount_deliveries_needed < 1:
-        fuel_costs = (amount_deliveries_needed*2*distance*365/100)*diesel_consumption*diesel_price
-        wages = amount_deliveries_needed * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
-    
-    else:
-        fuel_costs = (round(amount_deliveries_needed+0.5)*2*distance*365/100)*diesel_consumption*diesel_price
-        wages = round(amount_deliveries_needed+0.5) * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
-
-    annual_costs = (capex_trucks/RBF(interest,truck_lifetime)+capex_trailor/RBF(interest,trailor_lifetime)) + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
-    return annual_costs
-
 
 #Transformation of hydrogen: Standard condition is pressure = 25 bar and T = 298.15 K
 #There are four options: Standard condition, 500 bar, LH2, LOHC and NH3
@@ -268,7 +179,8 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         opex_liquid_plant = 0.06
         liquid_plant_lifetime = 20
 
-        annual_costs = (capex_liquid_plant/RBF(interestrate,liquid_plant_lifetime)) + (capex_liquid_plant*opex_liquid_plant) + elec_demand * electricity_costs + heat_demand*heat_costs
+        annual_costs = (capex_liquid_plant/RBF(interestrate,liquid_plant_lifetime))\
+            + (capex_liquid_plant*opex_liquid_plant) + elec_demand * electricity_costs + heat_demand*heat_costs
         return elec_demand, heat_demand, annual_costs
 
     elif final_state == 'LOHC_load':
@@ -283,7 +195,8 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         costs_carrier = 2                                                       #€/kg_carrier       https://www.hydrogenious.net/index.php/en/2020/07/21/lohc-global-hydrogen-opportunity/#:~:text=carbon%20hydrogen%20transportation.-,Source%3A%20Hydrogenious%20LOHC%20Technologies.,hydrogen%20cost%20of%20%242.54%2Fkg
         ratio_carrier = 16.1                                                    #kg_carrier:kg_h2   https://www.tvt.tf.fau.eu/files/2019/03/lohc-lkw_bericht_final_teil_1.pdf
 
-        annual_costs = ((capex_hydrogenation+(costs_carrier*ratio_carrier*h2_throughput*24))/RBF(interestrate, hydrogenation_lifetime)) + (capex_hydrogenation*opex_hydrogenation) + elec_demand * electricity_costs + heat_demand*heat_costs
+        annual_costs = ((capex_hydrogenation+(costs_carrier*ratio_carrier*h2_throughput*24))/RBF(interestrate, hydrogenation_lifetime))\
+            + (capex_hydrogenation*opex_hydrogenation) + elec_demand * electricity_costs + heat_demand*heat_costs
 
         return elec_demand, heat_demand, annual_costs
 
@@ -297,7 +210,8 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         opex_dehydrogenation = 0.04
         dehydrogenation_lifetime = 25
 
-        annual_costs = (capex_dehydrogenation/RBF(interestrate, dehydrogenation_lifetime)) + (capex_dehydrogenation*opex_dehydrogenation) + elec_demand * electricity_costs + heat_demand*heat_costs
+        annual_costs = (capex_dehydrogenation/RBF(interestrate, dehydrogenation_lifetime))\
+            + (capex_dehydrogenation*opex_dehydrogenation) + elec_demand * electricity_costs + heat_demand*heat_costs
 
         return elec_demand, heat_demand, annual_costs
 
@@ -311,7 +225,8 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         opex_NH3_plant = 0.015
         NH3_plant_lifetime = 25
 
-        annual_costs = capex_NH3_plant/RBF(interestrate,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant + elec_demand * electricity_costs + heat_demand*heat_costs
+        annual_costs = capex_NH3_plant/RBF(interestrate,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant\
+            + elec_demand * electricity_costs + heat_demand*heat_costs
             
         return elec_demand, heat_demand, annual_costs
     elif final_state == 'NH3_unload':
@@ -324,7 +239,8 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         opex_NH3_plant = 0.02
         NH3_plant_lifetime = 25
 
-        annual_costs = capex_NH3_plant/RBF(interestrate,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant + elec_demand * electricity_costs + heat_demand*heat_costs
+        annual_costs = capex_NH3_plant/RBF(interestrate,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant \
+            + elec_demand * electricity_costs + heat_demand*heat_costs
             
         return elec_demand, heat_demand, annual_costs
 
@@ -336,10 +252,15 @@ def cheapest_dist_option(final_state, quantity, dist, elec_costs, heat_costs, in
         dist_costs_lh2 = storage_costs('LH2',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
         dist_costs_nh3 = storage_costs('NH3',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
 
-        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_500bar(dist,quantity,interestrate)
-        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lh2(dist, quantity,interestrate) + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lohc(dist, quantity,interestrate) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_NH3(dist, quantity,interestrate) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('500 bar',dist,quantity,interestrate,transport_excel_path)
+        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('LH2',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('LOHC',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('NH3',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2]\
+                + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
 
         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
             cheapest_option = '500 bar'
@@ -358,10 +279,18 @@ def cheapest_dist_option(final_state, quantity, dist, elec_costs, heat_costs, in
         dist_costs_lh2 = storage_costs('LH2',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
         dist_costs_nh3 = storage_costs('NH3',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
 
-        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_500bar(dist,quantity,interestrate) + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]
-        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lh2(dist, quantity,interestrate) 
-        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lohc(dist, quantity,interestrate) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_NH3(dist, quantity,interestrate) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('500 bar',dist,quantity,interestrate,transport_excel_path) + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]
+        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('LH2',dist, quantity,interestrate,transport_excel_path) 
+        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('LOHC',dist, quantity,interestrate,transport_excel_path)\
+                + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2]\
+                    + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('NH3',dist, quantity,interestrate,transport_excel_path)\
+                + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2]\
+                    + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
 
         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
             cheapest_option = '500 bar'
@@ -380,10 +309,16 @@ def cheapest_dist_option(final_state, quantity, dist, elec_costs, heat_costs, in
         dist_costs_lh2 = storage_costs('LH2',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
         dist_costs_nh3 = storage_costs('NH3',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
 
-        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_500bar(dist,quantity,interestrate) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
-        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lh2(dist, quantity, interestrate) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
-        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lohc(dist, quantity, interestrate) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_NH3(dist, quantity, interestrate) 
+        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('500 bar',dist,quantity,interestrate,transport_excel_path) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
+        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('LH2',dist, quantity, interestrate,transport_excel_path) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
+        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('LOHC',dist, quantity, interestrate,transport_excel_path)\
+                + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2]\
+                    + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]\
+            + transport_costs('NH3',dist, quantity, interestrate,transport_excel_path) 
 
         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
             cheapest_option = '500 bar'
@@ -464,10 +399,10 @@ def cheapest_dist_option_pipeline(final_state, quantity, dist, elec_costs, heat_
         dist_costs_nh3 = storage_costs('NH3',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
         dist_costs_pipeline = 0 + storage_costs(final_state,quantity,days_storage,interestrate)
 
-        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_500bar(dist,quantity,interestrate)
-        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lh2(dist, quantity,interestrate) + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lohc(dist, quantity,interestrate) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_NH3(dist, quantity,interestrate) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('500 bar',dist,quantity,interestrate,transport_excel_path)
+        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('LH2',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('LOHC',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('NH3',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
         dist_costs_pipeline = dist_costs_pipeline + transport_pipeline(dist,quantity,elec_cost_grid,interestrate)[0] + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interestrate)[2]
 
         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3,dist_costs_pipeline):
@@ -490,10 +425,10 @@ def cheapest_dist_option_pipeline(final_state, quantity, dist, elec_costs, heat_
         dist_costs_nh3 = storage_costs('NH3',quantity,days_storage,interestrate) + storage_costs(final_state,quantity,days_storage,interestrate)
         dist_costs_pipeline = 0 + storage_costs(final_state,quantity,days_storage,interestrate)
 
-        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_500bar(dist,quantity,interestrate) + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]
-        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lh2(dist, quantity,interestrate) 
-        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lohc(dist, quantity,interestrate) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_NH3(dist, quantity,interestrate) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('500 bar',dist,quantity,interestrate,transport_excel_path) + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2]
+        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('LH2',dist, quantity,interestrate,transport_excel_path) 
+        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('LOHC',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('NH3',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
         dist_costs_pipeline = dist_costs_pipeline + transport_pipeline(dist,quantity,elec_cost_grid,interestrate)[0] + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interestrate)[2]
 
 
@@ -519,10 +454,10 @@ def cheapest_dist_option_pipeline(final_state, quantity, dist, elec_costs, heat_
         dist_costs_pipeline = 0 + storage_costs(final_state,quantity,days_storage,interestrate)
 
 
-        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_500bar(dist,quantity,interestrate) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
-        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lh2(dist, quantity,interestrate) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
-        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_lohc(dist, quantity,interestrate) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interestrate)[2]
-        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_NH3(dist, quantity,interestrate) 
+        dist_costs_500bar = dist_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('500 bar',dist,quantity,interestrate,transport_excel_path) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
+        dist_costs_lh2 =  dist_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('LH2',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2]
+        dist_costs_lohc = dist_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('LOHC',dist, quantity,interestrate,transport_excel_path) + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interestrate)[2] + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interestrate)[2]
+        dist_costs_nh3 = dist_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interestrate)[2] + transport_costs('NH3',dist, quantity,interestrate,transport_excel_path) 
         dist_costs_pipeline = dist_costs_pipeline + transport_pipeline(dist,quantity,elec_cost_grid,interestrate)[0] + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interestrate)[2]
 
         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3,dist_costs_pipeline):
@@ -561,9 +496,6 @@ def storage_costs(state,quantity,storagedays,interest):
     annual_costs = (capex_storage/RBF(interest,lifetime_storage)) + opex * capex_storage
 
     return annual_costs
-
-
-
 
     # !!! put these quantities in an excel sheet-- what are they for???
 
