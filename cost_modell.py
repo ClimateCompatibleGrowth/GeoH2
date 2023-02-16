@@ -737,7 +737,7 @@ for d in range(len(demand_center_list)):
                 demand_state = demand_center_list[d][3]
                 if demand_state in ['500 bar','LH2','NH3']:
                     transport_cost, transport_state =\
-                        cheapest_dist_option(demand_state,
+                        cheapest_transport_state(demand_state,
                                               hydrogen_quantity,
                                               distance_to_demand[i],
                                               cheapest_elec_cost[i]/1000,
@@ -772,7 +772,7 @@ for d in range(len(demand_center_list)):
             if hexagon['road_dist'][i]==0.: # hydrogen produced roadside
                 demand_state = demand_center_list[d][3]
                 if demand_state in ['500 bar', 'LH2', 'NH3']:
-                    transport_cost, transport_state = cheapest_dist_option(demand_state,
+                    transport_cost, transport_state = cheapest_transport_state(demand_state,
                                                                            hydrogen_quantity,
                                                                            distance_to_demand[i],
                                                                            cheapest_elec_cost[i]/1000,
