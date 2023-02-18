@@ -613,6 +613,7 @@ for d in range(len(demand_center_list)):
             transport_type.append('None')
         #%% calculate total cost of hydrogen (production plus transport costs) if pipeline construction is allowed
         # calculate cost of hydrogen production plus transportation if road construction is allowed
+        # !!! now that pipeline is a parameter in cheapest_transport_strategy, can condense code further
         # NON-LOCAL DEMAND
         elif (values3['Pipeline construction'] == True
             and values3['Road construction'] == True): 
@@ -620,7 +621,7 @@ for d in range(len(demand_center_list)):
                 if demand_state in ['500 bar','LH2','NH3']:
                     # determine lowest cost transport state in the pipeline
                     transport_cost, transport_state = \
-                        cheapest_dist_option_pipeline(demand_state,
+                        cheapest_transport_strategy(demand_state,
                                                        hydrogen_quantity,
                                                        distance_to_demand[i],
                                                        cheapest_elec_cost[i]/1000,
@@ -628,7 +629,8 @@ for d in range(len(demand_center_list)):
                                                        interest, 
                                                        elec_costs_at_demand, 
                                                        min(cheapest_elec_cost_grid)/1000,
-                                                       days_of_storage
+                                                       days_of_storage,
+                                                       pipeline = True
                                                        )
                     h2_costs_to_demand.append((road_construction_costs[i]/hydrogen_quantity)
                                               +h2_prod_costs[i]
@@ -665,7 +667,7 @@ for d in range(len(demand_center_list)):
                     demand_state = demand_center_list[d][3]
                     if demand_state in ['500 bar','LH2','NH3']:
                         distribution_cost, transport_state = \
-                            cheapest_dist_option_pipeline(demand_state, 
+                            cheapest_transport_strategy(demand_state, 
                                                           hydrogen_quantity, 
                                                           distance_to_demand[i], 
                                                           cheapest_elec_cost[i]/1000, 
@@ -673,7 +675,8 @@ for d in range(len(demand_center_list)):
                                                           interest, 
                                                           elec_costs_at_demand, 
                                                           min(cheapest_elec_cost_grid)/1000,
-                                                          days_of_storage
+                                                          days_of_storage,
+                                                          pipeline=True
                                                           )
                         h2_costs_to_demand.append(h2_prod_costs[i] + distribution_cost)
                         transport_type.append(transport_state)
@@ -732,19 +735,20 @@ for d in range(len(demand_center_list)):
                         #h2_costs_to_demand.append((nan))
                         #h2_costs_incl_conversion.append(nan)
         #%% pipeline construction not allowed but road construction allowed
-        elif (values3['Road construction'] != True
-              and values3['Pipeline construction'] == True):
+        elif (values3['Road construction'] == True
+              and values3['Pipeline construction'] != True):
                 demand_state = demand_center_list[d][3]
                 if demand_state in ['500 bar','LH2','NH3']:
                     transport_cost, transport_state =\
-                        cheapest_trucking_state(demand_state,
+                        cheapest_transport_strategy(demand_state,
                                               hydrogen_quantity,
                                               distance_to_demand[i],
                                               cheapest_elec_cost[i]/1000,
                                               0.03,
                                               interest,
                                               elec_costs_at_demand,
-                                              days_of_storage
+                                              days_of_storage,
+                                              pipeline = False
                                               )
                     h2_costs_to_demand.append((road_construction_costs[i]/hydrogen_quantity)
                                               +h2_prod_costs[i]
@@ -772,14 +776,15 @@ for d in range(len(demand_center_list)):
             if hexagon['road_dist'][i]==0.: # hydrogen produced roadside
                 demand_state = demand_center_list[d][3]
                 if demand_state in ['500 bar', 'LH2', 'NH3']:
-                    transport_cost, transport_state = cheapest_trucking_state(demand_state,
+                    transport_cost, transport_state = cheapest_transport_strategy(demand_state,
                                                                            hydrogen_quantity,
                                                                            distance_to_demand[i],
                                                                            cheapest_elec_cost[i]/1000,
                                                                            0.03,
                                                                            interest,
                                                                            elec_costs_at_demand,
-                                                                           days_of_storage
+                                                                           days_of_storage,
+                                                                           pipeline=False
                                                                            )
                     h2_costs_to_demand.append(h2_prod_costs[i]
                                               +transport_cost)
