@@ -355,7 +355,9 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 # only 1 conversion cost if final state is the same as transport option considered
 # otherwise consider both transport costs
 # when considering NH3 or LOHC for transport, need to account for both loading and unloading costs
-def cheapest_transport_state(final_state, quantity, distance, elec_costs, heat_costs, interest, elec_costs_demand, days_storage):
+
+def cheapest_transport_state(final_state, quantity, distance, elec_costs, heat_costs,
+                             interest, elec_costs_demand, days_storage):
     '''
     calculates the cheapest state in which to transport hydrogen
 
@@ -386,99 +388,234 @@ def cheapest_transport_state(final_state, quantity, distance, elec_costs, heat_c
         the lowest-cost state in which to transport hydrogen.
 
     '''
+
+    storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest)\
+        + storage_costs(final_state,quantity,days_storage,interest)
+    storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest)\
+        + storage_costs(final_state,quantity,days_storage,interest)
+    storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest)\
+        + storage_costs(final_state,quantity,days_storage,interest)
+    storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest)\
+        + storage_costs(final_state,quantity,days_storage,interest)
+
     if final_state == '500 bar':
-        storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-
-        dist_costs_500bar = storage_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)
-        dist_costs_lh2 =  storage_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('LH2',distance, quantity,interest,transport_excel_path)\
-                + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interest)[2]
-        dist_costs_lohc = storage_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('LOHC',distance, quantity,interest,transport_excel_path)\
-                + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
-                    + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interest)[2]
-        dist_costs_nh3 = storage_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('NH3',distance, quantity,interest,transport_excel_path)\
-                + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
-                    + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interest)[2]
-
-        if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = '500 bar'
-        elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = 'LH2'
-        elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = 'LOHC'
-        else:
-            cheapest_option = 'NH3'
-        
-        costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
-        
-        return costs_per_unit, cheapest_option
-
-    elif final_state == 'LH2':
-        storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-
-        dist_costs_500bar = storage_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)\
-                + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]
-        dist_costs_lh2 =  storage_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('LH2',distance, quantity,interest,transport_excel_path) 
-        dist_costs_lohc = storage_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('LOHC',distance, quantity,interest,transport_excel_path)\
-                + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
-                    + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interest)[2]
-        dist_costs_nh3 = storage_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('NH3',distance, quantity,interest,transport_excel_path)\
-                + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
-                    + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interest)[2]
-
-        if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = '500 bar'
-        elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = 'LH2'
-        elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = 'LOHC'
-        else:
-            cheapest_option = 'NH3'
-            
-        costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
-        return costs_per_unit, cheapest_option
-    
+        dist_costs_500bar = storage_costs_500bar\
+            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)
     elif final_state == 'NH3':
-        storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
-        storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest) + storage_costs(final_state,quantity,days_storage,interest)
+        dist_costs_500bar = storage_costs_500bar\
+            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+                    + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest)[2]
+    else:  
+        dist_costs_500bar = storage_costs_500bar\
+            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+                    + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest)[2]
+    if final_state == 'LH2':
+        dist_costs_lh2 =  storage_costs_lh2\
+            + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('LH2',distance, quantity,interest,transport_excel_path) 
+    elif final_state == 'NH3':
+        dist_costs_lh2 = storage_costs_500bar\
+            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+                    + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest)[2]
+    else:
+        dist_costs_lh2 =  storage_costs_lh2\
+            + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('LH2',distance, quantity,interest,transport_excel_path)\
+                    + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+    if final_state == 'NH3':
+        dist_costs_nh3 = storage_costs_nh3 \
+            + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('NH3',distance, quantity, interest,transport_excel_path) 
+    else:
+        dist_costs_nh3 = storage_costs_nh3\
+            + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('NH3',distance, quantity,interest,transport_excel_path)\
+                    + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+                        + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+    # no final demand for LOHC
+    if final_state == 'NH3':
+        dist_costs_lohc = storage_costs_lohc\
+            + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('LOHC',distance, quantity, interest,transport_excel_path)\
+                    + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+                        + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interest)[2]
+    else:
+        dist_costs_lohc = storage_costs_lohc\
+            + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+                + transport_costs('LOHC',distance, quantity,interest,transport_excel_path)\
+                    + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+                        + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
 
-        dist_costs_500bar = storage_costs_500bar + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('500 bar',distance,quantity,interest,transport_excel_path) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]
-        dist_costs_lh2 =  storage_costs_lh2 + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('LH2',distance, quantity, interest,transport_excel_path) + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]
-        dist_costs_lohc = storage_costs_lohc + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('LOHC',distance, quantity, interest,transport_excel_path)\
-                + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
-                    + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interest)[2]
-        dist_costs_nh3 = storage_costs_nh3 + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
-            + transport_costs('NH3',distance, quantity, interest,transport_excel_path) 
+    if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+        cheapest_option = '500 bar'
+    elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+        cheapest_option = 'LH2'
+    elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+        cheapest_option = 'LOHC'
+    else:
+        cheapest_option = 'NH3'
+    
+    costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
+    
+    return costs_per_unit, cheapest_option
 
-        if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = '500 bar'
-        elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = 'LH2'
-        elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
-            cheapest_option = 'LOHC'
-        else:
-            cheapest_option = 'NH3'
+######### old function below
 
-        costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
-        return costs_per_unit, cheapest_option
+# def cheapest_transport_state_old(final_state, quantity, distance, elec_costs, heat_costs,
+#                              interest, elec_costs_demand, days_storage):
+#     '''
+#     calculates the cheapest state in which to transport hydrogen
+
+#     Parameters
+#     ----------
+#     final_state : string
+#         final state for demand.
+#     quantity : float
+#         annual demand for hydrogen in kg.
+#     distance : float
+#         distance to transport hydrogen.
+#     elec_costs : float
+#         cost per kWh of electricity at hydrogen production site.
+#     heat_costs : float
+#         cost per kWh of heat.
+#     interest : float
+#         interest on capital investments.
+#     elec_costs_demand : float
+#         cost per kWh of electricity at hydrogen demand site.
+#     days_storage : float
+#         number of days of storage to build at production and demand sites.
+
+#     Returns
+#     -------
+#     costs_per_unit : float
+#         storage, conversion, and transport costs for the cheapest option.
+#     cheapest_option : string
+#         the lowest-cost state in which to transport hydrogen.
+
+#     '''
+#     if final_state == '500 bar':
+#         storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+
+#         dist_costs_500bar = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)
+#         dist_costs_lh2 =  storage_costs_lh2\
+#             + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('LH2',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interest)[2]
+#         dist_costs_lohc = storage_costs_lohc\
+#             + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('LOHC',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interest)[2]
+#         dist_costs_nh3 = storage_costs_nh3\
+#             + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('NH3',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand('500 bar', quantity, elec_costs_demand, heat_costs, interest)[2]
+
+#         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = '500 bar'
+#         elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = 'LH2'
+#         elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = 'LOHC'
+#         else:
+#             cheapest_option = 'NH3'
+        
+#         costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
+        
+#         return costs_per_unit, cheapest_option
+
+#     elif final_state == 'LH2':
+#         storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+
+#         dist_costs_500bar = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]
+#         dist_costs_lh2 =  storage_costs_lh2\
+#             + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('LH2',distance, quantity,interest,transport_excel_path) 
+#         dist_costs_lohc = storage_costs_lohc\
+#             + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('LOHC',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interest)[2]
+#         dist_costs_nh3 = storage_costs_nh3\
+#             + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('NH3',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand('LH2', quantity, elec_costs_demand, heat_costs, interest)[2]
+
+#         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = '500 bar'
+#         elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = 'LH2'
+#         elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = 'LOHC'
+#         else:
+#             cheapest_option = 'NH3'
+            
+#         costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
+#         return costs_per_unit, cheapest_option
+    
+#     elif final_state == 'NH3':
+#         storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+#         storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest)\
+#             + storage_costs(final_state,quantity,days_storage,interest)
+
+#         dist_costs_500bar = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]
+#         dist_costs_lh2 =  storage_costs_lh2\
+#             + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('LH2',distance, quantity, interest,transport_excel_path)\
+#                     + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]
+#         dist_costs_lohc = storage_costs_lohc\
+#             + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('LOHC',distance, quantity, interest,transport_excel_path)\
+#                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interest)[2]
+#         dist_costs_nh3 = storage_costs_nh3 \
+#             + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + transport_costs('NH3',distance, quantity, interest,transport_excel_path) 
+
+#         if dist_costs_500bar == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = '500 bar'
+#         elif dist_costs_lh2 == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = 'LH2'
+#         elif dist_costs_lohc == min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3):
+#             cheapest_option = 'LOHC'
+#         else:
+#             cheapest_option = 'NH3'
+
+#         costs_per_unit = min(dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3)/quantity
+#         return costs_per_unit, cheapest_option
 
 #Only new pipelines
 def transport_pipeline(distance,quantity,elec_cost,interest):
