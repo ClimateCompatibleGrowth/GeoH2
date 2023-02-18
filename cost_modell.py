@@ -709,7 +709,7 @@ for d in range(len(demand_center_list)):
                                                       hydrogen_quantity,
                                                       days_of_storage,
                                                       interest), 
-                                            transport_pipeline(distance_to_demand[i],
+                                            pipeline_costs(distance_to_demand[i],
                                              hydrogen_quantity,
                                              min(cheapest_elec_cost_grid)/1000,
                                              interest
@@ -717,7 +717,7 @@ for d in range(len(demand_center_list)):
                                             conversion_cost)
                     
                         
-                        transport_type.append(transport_pipeline(distance_to_demand[i],
+                        transport_type.append(pipeline_costs(distance_to_demand[i],
                                                                  hydrogen_quantity,
                                                                  min(cheapest_elec_cost_grid)/1000,
                                                                  interest)[1])
@@ -737,7 +737,7 @@ for d in range(len(demand_center_list)):
                 demand_state = demand_center_list[d][3]
                 if demand_state in ['500 bar','LH2','NH3']:
                     transport_cost, transport_state =\
-                        cheapest_transport_state(demand_state,
+                        cheapest_trucking_state(demand_state,
                                               hydrogen_quantity,
                                               distance_to_demand[i],
                                               cheapest_elec_cost[i]/1000,
@@ -772,7 +772,7 @@ for d in range(len(demand_center_list)):
             if hexagon['road_dist'][i]==0.: # hydrogen produced roadside
                 demand_state = demand_center_list[d][3]
                 if demand_state in ['500 bar', 'LH2', 'NH3']:
-                    transport_cost, transport_state = cheapest_transport_state(demand_state,
+                    transport_cost, transport_state = cheapest_trucking_state(demand_state,
                                                                            hydrogen_quantity,
                                                                            distance_to_demand[i],
                                                                            cheapest_elec_cost[i]/1000,
