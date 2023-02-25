@@ -35,23 +35,6 @@ def RBF(interest,lifetime):
     rbf = (((1+interest)**lifetime)-1)/(((1+interest)**lifetime)*interest)
     return rbf
 
-
-# Minimum function
-# replace this with numpy nanmin
-
-# def cheapest(option1,option2):
-#     if option1<option2:
-#         return option1
-#     elif option1 == 'Nan':
-#         return option2
-#     elif option2 == 'Nan':
-#         return option1
-#     else:
-#         return option2
-
-#Transportation annual costs
-
-###!!! experimental transport cost function for all transport states
 transport_excel_path = "Data/transport_parameters.xlsx"
 
 def trucking_costs(transport_state, distance, quantity, interest, excel_path):
@@ -366,7 +349,6 @@ def cheapest_transport_strategy(final_state, quantity, distance,
         annual demand for hydrogen in kg.
     distance : float
         distance to transport hydrogen.
-
     elec_costs : float
         cost per kWh of electricity at hydrogen production site.
     heat_costs : float
