@@ -549,26 +549,52 @@ def pipeline_costs(distance,quantity,elec_cost,interest):
 
     return annual_costs, f"{pipeline_type} Pipeline"
 
-def storage_costs(state,quantity,storagedays,interest):
-    # !!! put these quantities in an excel sheet
+storage_excel_path = "Data/storage_parameters.xlsx"
 
-    opex = 0.02
-    lifetime_storage = 20 
+
+def storage_costs(state, quantity, storage_days, interest, excel_path = "Data/storage_parameters.xlsx"):
+    '''
+    calculates the annualized cost of storage for different forms of hydrogen
+
+    Parameters
+    ----------
+    state : string
+        state in which to store hydrogen, one of '500 bar','LH2','LOHC', or 'NH3'.
+    quantity : float
+        amount of hydrogen to store in kg.
+    storage_days : float
+        days of storage.
+    interest : float
+        interest rate to apply to storage capex costs.
+    excel_path : string
+        path to storage_parameters.xlsx file. Default "Data/storage_parameters.xlsx"
+    Returns
+    -------
+    annual_costs : float
+        annualized cost of hydrogen storage.
+
+    '''
+    storage_parameters = pd.read_excel(excel_path,
+                                         index_col = 'Parameter'
+                                         ).squeeze('columns')
+    opex = storage_parameters['Opex share (% of capex)']
+    lifetime_storage = storage_parameters['Storage lifetime (a)'] 
 
     if state == '500 bar':
-        capex_storage = 2160*((quantity*storagedays/365)**-0.146)
+        capex_coeff = storage_parameters['500 bar capex coefficient (euros per (kg day)^0.146)']\
+            *((quantity*storage_days/365)**-0.146)
     
     elif state == 'LH2':
-        capex_storage = 37.24
+        capex_coeff = storage_parameters['LH2 capex coefficient (euros per kg per day)']
 
     elif state == 'LOHC':
-        capex_storage = 3.192
+        capex_coeff = storage_parameters['LOHC capex coefficient (euros per kg per day)']
     
     elif state == 'NH3':
-        capex_storage = 8.512
+        capex_coeff = storage_parameters['NH3 capex coefficient (euros per kg per day)']
     
 
-    capex_storage = capex_storage * (quantity*storagedays/365)
+    capex_storage = capex_coeff * (quantity*storage_days/365)
     annual_costs = (capex_storage/RBF(interest,lifetime_storage)) + opex * capex_storage
 
     return annual_costs
