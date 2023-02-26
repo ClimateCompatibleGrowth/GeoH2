@@ -23,17 +23,17 @@ For this rule to work you must have
 """
 import logging
 import atlite
-import geopandas as gpd
-import pandas as pd
+# import geopandas as gpd
+# import pandas as pd
 # from _helpers import configure_logging
 
 logging.basicConfig(level=logging.INFO)
 
 
-snapshots = slice("2010-01-01","2023-01-01") # date range to import, end not inclusive
+snapshots = slice("2022-06-01","2022-07-01") # date range to import, end not inclusive
 
 cutout = atlite.Cutout(
-    path="Cutouts\Kenya-2019-01.nc",
+    path="Cutouts\Kenya-2022-06.nc",
     module="era5",
     x=slice(34., 41.),
     y=slice(-4., 4.),

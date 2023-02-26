@@ -7,12 +7,11 @@ import pandas as pd
 import numpy as np
 # import xlsxwriter as xw
 
-# !!! put this conversion in an excel sheet or use USD for all calculations
-usd_to_euro = 0.95
+# usd_to_euro = 0.95
 
-# RBF function
+# NPV function
 
-def RBF(interest,lifetime):
+def NPV(interest,lifetime):
     '''
     Calculates the present value factor of a capital investment.
 
@@ -25,15 +24,15 @@ def RBF(interest,lifetime):
 
     Returns
     -------
-    rbf : float
+    NPV : float
         present value factor.
 
     '''
     interest = float(interest)
     lifetime = float(lifetime)
 
-    rbf = (((1+interest)**lifetime)-1)/(((1+interest)**lifetime)*interest)
-    return rbf
+    NPV = (((1+interest)**lifetime)-1)/(((1+interest)**lifetime)*interest)
+    return NPV
 
 transport_excel_path = "Data/transport_parameters.xlsx"
 
@@ -107,7 +106,7 @@ def trucking_costs(transport_state, distance, quantity, interest, excel_path):
         fuel_costs = (round(amount_deliveries_needed+0.5)*2*distance*365/100)*diesel_consumption*diesel_price
         wages = round(amount_deliveries_needed+0.5) * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
 
-    annual_costs = (capex_trucks/RBF(interest,truck_lifetime)+capex_trailor/RBF(interest,trailor_lifetime))\
+    annual_costs = (capex_trucks/NPV(interest,truck_lifetime)+capex_trailor/NPV(interest,trailor_lifetime))\
         + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
     return annual_costs
 
@@ -195,7 +194,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 
         capex_compressor = capex_coefficient * ((daily_throughput)**0.6038)
 
-        annual_costs = (capex_compressor/RBF(interest,compressor_lifetime))\
+        annual_costs = (capex_compressor/NPV(interest,compressor_lifetime))\
             + (capex_compressor*opex_compressor)\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -223,7 +222,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
             +capex_linear_coefficient*daily_throughput\
                 +capex_constant
 
-        annual_costs = (capex_liquid_plant/RBF(interest,liquid_plant_lifetime))\
+        annual_costs = (capex_liquid_plant/NPV(interest,liquid_plant_lifetime))\
             + (capex_liquid_plant*opex_liquid_plant)\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -251,7 +250,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         capex_hydrogenation = capex_coefficient * quantity
 
         # why are daily carrier costs included in net present value calculation?
-        annual_costs = (capex_hydrogenation+costs_carrier*ratio_carrier*daily_throughput)/RBF(interest, hydrogenation_lifetime)\
+        annual_costs = (capex_hydrogenation+costs_carrier*ratio_carrier*daily_throughput)/NPV(interest, hydrogenation_lifetime)\
             + capex_hydrogenation*opex_hydrogenation\
                 + elec_demand * electricity_costs \
                     + heat_demand*heat_costs
@@ -275,7 +274,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         heat_demand = heat_unit_demand * quantity
         capex_dehydrogenation = capex_coefficient * quantity
         
-        annual_costs = (capex_dehydrogenation/RBF(interest, dehydrogenation_lifetime))\
+        annual_costs = (capex_dehydrogenation/NPV(interest, dehydrogenation_lifetime))\
             + (capex_dehydrogenation*opex_dehydrogenation)\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -300,7 +299,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         heat_demand = heat_unit_demand * quantity
         capex_NH3_plant = capex_coefficient * quantity
 
-        annual_costs = capex_NH3_plant/RBF(interest,NH3_plant_lifetime)\
+        annual_costs = capex_NH3_plant/NPV(interest,NH3_plant_lifetime)\
             + capex_NH3_plant*opex_NH3_plant\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -325,7 +324,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 
         capex_NH3_plant = capex_coefficient * ((quantity/1000/365/24) ** 0.7451)    
 
-        annual_costs = capex_NH3_plant/RBF(interest,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant \
+        annual_costs = capex_NH3_plant/NPV(interest,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant \
             + elec_demand * electricity_costs + heat_demand*heat_costs
             
         return elec_demand, heat_demand, annual_costs
@@ -540,8 +539,8 @@ def pipeline_costs(distance,quantity,elec_cost,interest):
     capex_pipeline = pipeline_parameters['Pipeline capex (euros)']
     capex_compressor = pipeline_parameters['Compressor capex (euros)']
     
-    capex_annual = ((capex_pipeline*distance)/RBF(interest,lifetime_pipeline))\
-        + ((capex_compressor*distance)/RBF(interest,lifetime_compressors))
+    capex_annual = ((capex_pipeline*distance)/NPV(interest,lifetime_pipeline))\
+        + ((capex_compressor*distance)/NPV(interest,lifetime_compressors))
     opex_annual = opex*(capex_pipeline+capex_compressor)*distance
     electricity_costs = electricity_demand * distance * quantity * elec_cost
 
@@ -595,7 +594,7 @@ def storage_costs(state, quantity, storage_days, interest, excel_path = "Data/st
     
 
     capex_storage = capex_coeff * (quantity*storage_days/365)
-    annual_costs = (capex_storage/RBF(interest,lifetime_storage)) + opex * capex_storage
+    annual_costs = (capex_storage/NPV(interest,lifetime_storage)) + opex * capex_storage
 
     return annual_costs
 

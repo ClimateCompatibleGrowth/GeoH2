@@ -15,7 +15,7 @@ import geopandas as gpd
 from numpy import nanmin
 import pandas as pd
 import matplotlib.pyplot as plt                 #see: https://geopandas.org/en/stable/docs/user_guide/mapping.html for plotting
-from functions import *
+from functions import NPV, cheapest_transport_strategy, h2_conversion_stand, storage_costs, pipeline_costs
 from cmath import nan, pi
 from shapely.geometry import Point
 import shapely.geometry
@@ -227,7 +227,7 @@ for i in range(len(hexagon)):
     pv_hourly_output = []
     input_ely_pv = []
 
-    pv_elec_cost_hex = (((pv_capex/RBF(interest,pv_lifetime))+pv_opex)/hexagon['pv'][i]/365) * 1000
+    pv_elec_cost_hex = (((pv_capex/NPV(interest,pv_lifetime))+pv_opex)/hexagon['pv'][i]/365) * 1000
     pv_elec_cost.append(pv_elec_cost_hex)
     #!!! replace this hardcoded number (where does it come from?)
     pv_ely_ratio.append(0.5916057743717814)
@@ -298,7 +298,7 @@ for i in range(len(hexagon)):
 
     wind_yearly_output.append(annual_power_output)
     turb_out = annual_power_output / p_turb
-    wind_elec_cost_hex = ((wind_capex/RBF(interest,wind_lifetime)+wind_opex)/turb_out) * 1000
+    wind_elec_cost_hex = ((wind_capex/NPV(interest,wind_lifetime)+wind_opex)/turb_out) * 1000
     #!!! where does this cutoff cost come from?
     if wind_elec_cost_hex > 150:
         wind_elec_cost_hex = nan
@@ -379,7 +379,7 @@ if values3['Grid construction'] == True:
         if hexagon['grid_dist'][i] != 0:
             #!!! where are these numbers coming from? possibly efficiency of grid transmission
             elec_cost_to_connect.append(hexagon['cheapest_elec_cost'][i]
-                                        +((hexagon['grid_dist'][i]*grid_capex/RBF(interest,grid_lifetime))
+                                        +((hexagon['grid_dist'][i]*grid_capex/NPV(interest,grid_lifetime))
                                           /(2000*8760*0.95*0.9))) # unsure what conversion these numbers are doing
         else:
             elec_cost_to_connect.append(hexagon['cheapest_elec_cost'][i])
@@ -403,11 +403,11 @@ if values3['Grid construction'] == True:
                 cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], 
                                                    (min(elec_cost_at_grid)
                                                     +elec_trans_costs
-                                                    +((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime)))))
+                                                    +((hexagon['grid_dist'][i]*grid_capex)/NPV(interest,grid_lifetime)))))
                 #cheapest_elec_cost_grid.append(cheapest_elec_cost[i])
                 if (min(elec_cost_at_grid)
                     +elec_trans_costs
-                    +((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime))) < cheapest_elec_cost[i]:
+                    +((hexagon['grid_dist'][i]*grid_capex)/NPV(interest,grid_lifetime))) < cheapest_elec_cost[i]:
                     cheapest_elec_tech[i] = 'Grid'
     else:
         for i in range(len(hexagon)):
@@ -422,9 +422,9 @@ if values3['Grid construction'] == True:
                 cheapest_elec_cost_grid.append(min(cheapest_elec_cost[i], 
                                                    (min(elec_cost_to_connect)
                                                     +elec_trans_costs
-                                                    +((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime)))))
+                                                    +((hexagon['grid_dist'][i]*grid_capex)/NPV(interest,grid_lifetime)))))
                 if (min(elec_cost_to_connect)
-                    +elec_trans_costs+((hexagon['grid_dist'][i]*grid_capex)/RBF(interest,grid_lifetime))) < cheapest_elec_cost[i]:
+                    +elec_trans_costs+((hexagon['grid_dist'][i]*grid_capex)/NPV(interest,grid_lifetime))) < cheapest_elec_cost[i]:
                     cheapest_elec_tech[i] = 'Grid'
 else:
     cheapest_elec_cost_grid = []
@@ -490,15 +490,15 @@ h2_prod_costs = []
 
 for i in range(len(hexagon)):
     if hexagon['cheapest_elec_tech'][i] == 'PV' and hexagon['theo_pv'][i] >= 1:
-        ely_costs = ((((ely_capex+ely_stack_replacement)/RBF(interest,ely_lt))/(flh_pv))*(h2_en_den/ely_eff))*(1 + ely_opex)
+        ely_costs = ((((ely_capex+ely_stack_replacement)/NPV(interest,ely_lt))/(flh_pv))*(h2_en_den/ely_eff))*(1 + ely_opex)
         h2_prod_costs.append(((hexagon['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)
     
     elif hexagon['cheapest_elec_tech'][i] == 'Wind' and hexagon['theo_turbines'][i] >= 1:
-        ely_costs = ((((ely_capex+ely_stack_replacement)/RBF(interest,ely_lt))/(flh_wind))*(h2_en_den/ely_eff))*(1 + ely_opex)
+        ely_costs = ((((ely_capex+ely_stack_replacement)/NPV(interest,ely_lt))/(flh_wind))*(h2_en_den/ely_eff))*(1 + ely_opex)
         h2_prod_costs.append(((hexagon['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)
     
     elif hexagon['cheapest_elec_tech'][i] == 'Grid':
-        ely_costs = ((((ely_capex+ely_stack_replacement)/RBF(interest,ely_lt))/(flh_wind))*(h2_en_den/ely_eff))*(1 + ely_opex)
+        ely_costs = ((((ely_capex+ely_stack_replacement)/NPV(interest,ely_lt))/(flh_wind))*(h2_en_den/ely_eff))*(1 + ely_opex)
         h2_prod_costs.append(((hexagon['cheapest_elec_cost'][i]/1000)* (h2_en_den/ely_eff)) + ely_costs + h2o_costs[i]*ely_water)        
 
     else: 
@@ -580,10 +580,10 @@ for d in range(len(demand_center_list)):
             road_construction_costs.append(0)
         elif hexagon['road_dist'][i]!=0 and hexagon['road_dist'][i]<10:
             road_construction_costs.append(((hexagon['road_dist'][i]*road_capex_short)
-                                            /(RBF(interest,road_lifetime)))+(hexagon['road_dist'][i]*road_opex))
+                                            /(NPV(interest,road_lifetime)))+(hexagon['road_dist'][i]*road_opex))
         else:
             road_construction_costs.append(((hexagon['road_dist'][i]*road_capex_long)
-                                            /(RBF(interest,road_lifetime)))+(hexagon['road_dist'][i]*road_opex))
+                                            /(NPV(interest,road_lifetime)))+(hexagon['road_dist'][i]*road_opex))
         #%% calculate cost of transportation and conversion for all hexagons
     for i in range(len(hexagon)):
         #%% calculate cost of meeting hydrogen local demand within the same hexagon
