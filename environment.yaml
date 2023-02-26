@@ -4,6 +4,8 @@ channels:
 
 dependencies:
   - python
+  - atlite
+  - cdsapi
   - geopandas
   - geopy
   - matplotlib
