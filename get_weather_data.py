@@ -24,19 +24,33 @@ For this rule to work you must have
 import logging
 import atlite
 # import geopandas as gpd
-# import pandas as pd
+import pandas as pd
 # from _helpers import configure_logging
 
 logging.basicConfig(level=logging.INFO)
 
+weather_excel_path = "Data/weather_parameters.xlsx"
 
-snapshots = slice("2022-06-01","2022-07-01") # date range to import, end not inclusive
+weather_parameters = pd.read_excel(weather_excel_path,
+                                   index_col = 'Parameters'
+                                   ).squeeze('columns')
+
+start_date = weather_parameters['Start date']
+end_date = weather_parameters['End date (not inclusive)']
+min_lon = weather_parameters['Minimum longitude (deg)']
+max_lon = weather_parameters['Maximum longitude (deg)']
+min_lat = weather_parameters['Minimum latitude (deg)']
+max_lat = weather_parameters['Maximum latitude (deg)']
+filename = weather_parameters['Filename']
+
+
+snapshots = slice(start_date,end_date) # date range to import, end not inclusive
 
 cutout = atlite.Cutout(
-    path="Cutouts\Kenya-2022-06.nc",
+    path="Cutouts/" + filename + ".nc",
     module="era5",
-    x=slice(34., 41.),
-    y=slice(-4., 4.),
+    x=slice(min_lon, max_lon),
+    y=slice(min_lat, max_lat),
     time=snapshots,
 )
 
