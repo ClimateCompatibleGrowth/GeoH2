@@ -1,0 +1,4 @@
+name,control,generator,carrier
+Power,Slack,Wind,AC
+Hydrogen,Slack,,H2
+Hydrogen Storage,Slack,,H2
