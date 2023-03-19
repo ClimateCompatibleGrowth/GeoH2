@@ -1,7 +1,24 @@
 # GEOH2
 Geospatial analysis of hydrogen production costs
 
-GEOH2 helps to identify regional hydrogen production costs. In the code provided, the specific use case of Kenya is investiagte. As the code is written in a generalized way, it is possible to analyse all sorts of regions. For this, adjustments to the input data file, which can be found in the folder "Data", have to be made. Other techno-economic parameter changes can be done in the 'technology_parameters.xlsx' file or directly in the code.
+GEOH2 calculates the locational cost of green hydrogen production, storage, transport, and conversion to meet demand in a specified location. These costs can be compared to current or projected prices for energy and chemical feedstocks in the region to assess the competitiveness of green hydrogen. Currently, different end-uses, such as fertilizer production, export shipping, and steel production, are not modeled.
+
+Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the Data folder.
+
+- **Weather parameters:** `weather_parameters.xlsx` includes the locational and time range to download historical weather data from the ERA5 reanalysis dataset to calculate wind and solar generation potential. At least a year is recommended for the weather time range to capture seasonal variation in renewable potential, but longer time ranges will increase the computation time for optimizing the design of a hydrogen plant.
+
+- **Technology parameters:** ` technology_parameters.xlsx` includes the price of water, interest rate (i.e. cost of capital), and road infrastructure price. *Note: interest rates will soon be moved to their own sheet for country-specific and potentially technology-specific values.*
+
+- **Pipeline parameters:** `pipeline_parameters.xlsx` includes the price, capacity, and lifetime data for different sizes of hydrogen pipeline.
+
+- **Storage parameters:** `storage_parameters.xlsx` includes the price and lifetime of hydrogen storage.
+
+- **Transport parameters:** `transport_parameters.xlsx` includes the parameters related to road transport of hydrogen, including truck speed, cost, lifetime, and capacity.
+
+The model outputs the levelized cost of hydrogen (LCOH) at the demand location including production, storage, transport, and conversion costs. 
+
+In the code provided, the specific use case of Kenya is investigated. As the code is written in a generalized way, it is possible to analyse all sorts of regions.
+
 
 # Installation instructions
 ## Clone the repository
@@ -31,7 +48,7 @@ The hexagon file needs to filled with the following attributes:
   - waterway_dist: Distance to selected waterways in area of interest
   - ocean_dist: Distance to ocean coastline 
   
-  - grid_dist: Distance to transmissin network
+  - grid_dist: Distance to transmission network
   
   - road_dist: Distance to road network
   
