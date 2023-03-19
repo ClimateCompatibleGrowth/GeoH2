@@ -1,19 +1,21 @@
 name: geoh2
 channels:
   - defaults
+  - conda-forge
 
 dependencies:
   - python
   - atlite
-  - cdsapi
   - geopandas
-  - geopy
   - matplotlib
   - numpy
   - openpyxl
   - pandas
   - pip
-  - PySimpleGUI
   - shapely
   - xlsxwriter
 
+  - pip:
+    - cdsapi
+    - geopy
+    - PySimpleGUI
