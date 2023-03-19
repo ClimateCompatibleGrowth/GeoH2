@@ -89,7 +89,7 @@ logging.basicConfig(level=logging.ERROR)
 
 # try to parallelize with dask, chunk into location-wise chunks for speed
 
-def optimize_hydrogen_plant(wind_potential, pv_potential, times, interest):
+def optimize_hydrogen_plant(wind_potential, pv_potential, times, interest, basis_fn = None):
     # ==================================================================================================================
     # Set up network
     # ==================================================================================================================
@@ -129,10 +129,21 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, interest):
 
     # Ask the user how they would like to solve
     # solver, formulator = aux.get_solving_info()
-    solver = 'glpk' # open-source, test which is fastest of CBC, GLPK, and HiGHs
-    
-    n.lopf(solver_name=solver, pyomo=False, extra_functionality=aux.extra_functionalities)
-
+    # solver = 'glpk' # open-source, test which is fastest of CBC, GLPK, and HiGHs
+    solver = 'cbc'
+    if basis_fn is None:
+        n.lopf(solver_name=solver,
+               pyomo=False,
+               extra_functionality=aux.extra_functionalities,
+               store_basis = True
+               )
+    else:
+        n.lopf(solver_name=solver,
+               pyomo=False,
+               extra_functionality=aux.extra_functionalities,
+               warmstart = basis_fn,
+               store_basis = True
+               )
     # ==================================================================================================================
     # Output results
     # ==================================================================================================================
@@ -155,12 +166,13 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, interest):
     #!!! for now just return LCOH
     lcoh = n.objective/(n.loads.p_set.values[0]/39.4*8760*1000)
     print(lcoh)
-    return lcoh # need to change this to something that can be added to hexagons
+    basis_fn = n.basis_fn
+    return lcoh, n.basis_fn # need to change this to something that can be added to hexagons
 
 
 
-# test run
-# test = optimize_hydrogen_plant(wind_profile.sel(hexagon=1),pv_profile.sel(hexagon=1),pv_profile.time, 0.08)
+# test run-- run a single hexagon to get warmstart
+test = optimize_hydrogen_plant(wind_profile.sel(hexagon=1),pv_profile.sel(hexagon=1),pv_profile.time, 0.08)
 
 # test = optimize_hydrogen_plant(wind_profile.sel(hexagon=hexagon_number),
 #                             pv_profile.sel(hexagon=hexagon_number),
@@ -180,25 +192,65 @@ interest_rate = 0.08
 #%%
 import time
 
-start = time.process_time()
-#!!! try to figure out ufunc
-results = xr.apply_ufunc(
-    optimize_hydrogen_plant,
-    wind_profile,
-    pv_profile,
-    wind_profile.time,
-    interest_rate, # can replace this with a hexagon-based interest rate
-    input_core_dims = [['time'],['time'],['time'],[]],
-    # output_core_dims = [['time']],
-    # exclude_dims=set(('time',)),
-    vectorize=True,
-    dask="parallelized",
-    # output_dtypes='float64',
-    )#.compute()
-# %time _ = results.compute()
-no_compute = time.process_time()-start
-print(str(no_compute) + ' s without compute') #7.86 s, 7.61
+# start = time.process_time()
+# #!!! try to figure out ufunc
+# results = xr.apply_ufunc(
+#     optimize_hydrogen_plant,
+#     wind_profile, 
+#     pv_profile,
+#     wind_profile.time,
+#     interest_rate, # can replace this with a hexagon-based interest rate
+#     input_core_dims = [['time'],['time'],['time'],[]],
+#     # output_core_dims = [['time']],
+#     # exclude_dims=set(('time',)),
+#     vectorize=True,
+#     dask="parallelized",
+#     # output_dtypes='float64',
+#     )#.compute()
+# # %time _ = results.compute()
+# no_compute = time.process_time()-start
+# print(str(no_compute) + ' s without warmstart')
 
+#%% try speeding up with a warmstart for loop
+# basis_fn = None
+start = time.process_time()
+
+lcohs = np.zeros(len(pv_profile.hexagon))
+bases = None
+for hexagon in pv_profile.hexagon.data:
+    if bases == None:
+        lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+                                pv_profile.sel(hexagon = hexagon),
+                                wind_profile.time,
+                                interest_rate,
+                                )
+    else:
+        print('Warmstarting...')
+        lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+                                pv_profile.sel(hexagon = hexagon),
+                                wind_profile.time,
+                                interest_rate,
+                                basis_fn = bases
+                                )
+    lcohs[hexagon]=lcoh
+    bases = basis_fn
+no_compute = time.process_time()-start
+print(str(no_compute) + ' s without compute') #1206 s-- 8% speedup compared to without warmstart
+#%% 
+start = time.process_time()
+
+lcohs = np.zeros(len(pv_profile.hexagon))
+bases = None
+for hexagon in pv_profile.hexagon.data:
+    lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+                            pv_profile.sel(hexagon = hexagon),
+                            wind_profile.time,
+                            interest_rate,
+                            )
+    lcohs[hexagon]=lcoh
+    bases = basis_fn
+coldstart = time.process_time()-start
+print(str(coldstart) + ' s without warmstart') #1294 s
 # #%%
 # start = time.process_time()
 # #!!! try to figure out ufunc
