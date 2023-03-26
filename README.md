@@ -24,18 +24,17 @@ In the code provided, the specific use case of Kenya is investigated. As the cod
 ## Clone the repository
 First, clone the GEOH2 repository using `git`. 
 
-`/some/other/path % cd /some/path/without/spaces
-`/some/path/without/spaces % git clone https://github.com/leandermue/GEOH2.git
+`/some/other/path % cd /some/path/without/spaces`
+`/some/path/without/spaces % git clone https://github.com/leandermue/GEOH2.git`
 
 ## Install Python dependencies
-The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `conda` package and environment manager: 
+The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `conda` package and environment manager (available for installation [here](https://docs.conda.io/en/latest/miniconda.html)): 
+
 ` .../GEOH2 % conda env create -f envs/environment.yaml`
+
 Then activate this new environment using
+
 `.../GEOH2 % conda activate geoh2`
-
-
-Note: `gurobipy` package is only available from PyPI through pip, so create the GEOH2 environment and then run 
-`.../GEOH2 pip install gurobipy`
 
 # Analysis of desired region
 To analyse a different area of interest, the input hexagon file needs to be changed, but needs to follow the logic of the one provided. An explanation how a H3-Hexagon file can be created can be found in the following repo:

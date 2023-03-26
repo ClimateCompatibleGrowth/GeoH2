@@ -6,13 +6,16 @@ channels:
 dependencies:
   - python
   - atlite
+  - coincbc
   - geopandas
   - matplotlib
   - numpy
   - openpyxl
   - pandas
   - pip
-  - shapely
+  - pypsa
+  - shapely=1.8.4
+  - spyder-kernels
   - xlsxwriter
 
   - pip:
