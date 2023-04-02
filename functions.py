@@ -1,15 +1,6 @@
 
-# from gurobipy import *
-# import gurobipy as gp
-# from gurobipy import GRB
 import pandas as pd
-# import random
 import numpy as np
-# import xlsxwriter as xw
-
-# usd_to_euro = 0.95
-
-# NPV function
 
 def NPV(interest,lifetime):
     '''
@@ -115,7 +106,6 @@ def trucking_costs(transport_state, distance, quantity, interest, excel_path):
 #quantity per year in kg
 #energy demand yearly
 #default opex 2% of capex
-
 
 
 
@@ -597,53 +587,3 @@ def storage_costs(state, quantity, storage_days, interest, excel_path = "Data/st
     annual_costs = (capex_storage/NPV(interest,lifetime_storage)) + opex * capex_storage
 
     return annual_costs
-
-    # !!! put these quantities in an excel sheet-- what are they for???
-
-demand = [100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000, 1000000000]
-
-distance = list(range(100, 1550, 50))
-
-total_list = []
-
-#for i in demand:
-#    row_list = []
-#    for j in distance:
-#        row_list.append(str(cheapest_dist_option_pipeline('500 bar', i,j,0.04,0.08,0.08,0.04,0.04)[0]))
-    
-#    total_list.append(row_list)
-
-#print(total_list)
-
-array = np.array(total_list)
-
-storage = ['500 bar', 'LH2', 'LOHC', 'NH3']
-
-#for i in storage:
-#    print(storage_costs(i,10000000,3,0.08)/(10000000))
-
-
-#print(array)
-
-#workbook = xw.Workbook('arrays.xlsx')
-#worksheet = workbook.add_worksheet()
-
-
-#row = 0
-
-#for col, data in enumerate(array):
-#    worksheet.write_column(row, col, data)
-
-#workbook.close()
-
-
-#qu = 1000000
-
-#print((h2_conversion_stand('LOHC_load', qu, 0.04, 0.08, 0.08)[2] + h2_conversion_stand('LOHC_unload', qu, 0.04, 0.08, 0.08)[2] + transport_lohc(700,qu,0.08) + h2_conversion_stand('500 bar', qu, 0.04, 0.03, 0.08)[2])/qu)
-
-#print(( h2_conversion_stand('500 bar', qu, 0.04, 0.08, 0.08)[2] + transport_500bar(700,qu,0.08))/qu)
-
-
-#transport_500bar(100,10000,0.08)
-#print(transport_500bar(200,10000000,0.08)/10000000 )
-#print(distance)

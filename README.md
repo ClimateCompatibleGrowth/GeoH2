@@ -3,17 +3,28 @@ Geospatial analysis of hydrogen production costs
 
 GEOH2 calculates the locational cost of green hydrogen production, storage, transport, and conversion to meet demand in a specified location. These costs can be compared to current or projected prices for energy and chemical feedstocks in the region to assess the competitiveness of green hydrogen. Currently, different end-uses, such as fertilizer production, export shipping, and steel production, are not modeled.
 
-Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the Data folder.
+Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the Parameters folder.
+
+- **Demand parameters:** `demand_parameters.xlsx` includes a list of demand centers. For each demand center, its lat-lon location, annual demand, and hydrogen state for that demand must be specified. If multiple forms are hydrogen are demanded in one location, differentiate the demand center name (e.g. Nairobi LH2 and Nairobi NH3) to avoid problems from duplicate demand center names.
+
+- ** Investment parameters:** `investment_parameters.xlsx` includes country- and technology-specific interest rates and asset lifetimes.
+    - Interest rates should be expressed as a decimal, e.g. 5% as 0.05.
+    - Asset lifetimes should be in years.
+    
+- **Basic H2 plant** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh.
 
 - **Weather parameters:** `weather_parameters.xlsx` includes the locational and time range to download historical weather data from the ERA5 reanalysis dataset to calculate wind and solar generation potential. At least a year is recommended for the weather time range to capture seasonal variation in renewable potential, but longer time ranges will increase the computation time for optimizing the design of a hydrogen plant.
+    - Note that the end date is not inclusive, so if you want to download weather data for all of 2022, you should input 01-01-2023 as the end date.
 
 - **Technology parameters:** ` technology_parameters.xlsx` includes the price of water, interest rate (i.e. cost of capital), and road infrastructure price. *Note: interest rates will soon be moved to their own sheet for country-specific and potentially technology-specific values.*
-
+    - Sheets to ignore (to be deprecated): Electricity, Electrolysis, Wind Turbine, and interest rate parameter on Global sheet.
+    
 - **Pipeline parameters:** `pipeline_parameters.xlsx` includes the price, capacity, and lifetime data for different sizes of hydrogen pipeline.
 
-- **Storage parameters:** `storage_parameters.xlsx` includes the price and lifetime of hydrogen storage.
+- **Storage parameters:** `storage_parameters.xlsx` includes the price and lifetime of hydrogen storage. To be deprecated.
 
 - **Transport parameters:** `transport_parameters.xlsx` includes the parameters related to road transport of hydrogen, including truck speed, cost, lifetime, and capacity.
+
 
 The model outputs the levelized cost of hydrogen (LCOH) at the demand location including production, storage, transport, and conversion costs. 
 
