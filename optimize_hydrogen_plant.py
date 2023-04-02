@@ -66,7 +66,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     n.set_snapshots(times)
 
     # Import the design of the H2 plant into the network
-    n.import_from_csv_folder("Data/Basic_H2_plant")
+    n.import_from_csv_folder("Parameters/Basic_H2_plant")
     
     # Import demand profile
     # Note: All flows are in MW or MWh, conversions for hydrogen done using HHVs. Hydrogen HHV = 39.4 MWh/t
@@ -255,7 +255,7 @@ ax.set_axis_off()
 
 hexagons.to_crs(crs.proj4_init).plot(
     ax=ax,
-    column = 'LCOH trucking',
+    column = 'Nairobi LCOH trucking',
     legend = True,
     cmap = 'viridis_r',
     legend_kwds={'label':'Production LCOH [euros/kg]'},    
@@ -267,7 +267,7 @@ ax.set_axis_off()
 
 hexagons.to_crs(crs.proj4_init).plot(
     ax=ax,
-    column = 'LCOH pipeline',
+    column = 'Mombasa LCOH trucking',
     legend = True,
     cmap = 'viridis_r',
     legend_kwds={'label':'Production LCOH [euros/kg]'},    
