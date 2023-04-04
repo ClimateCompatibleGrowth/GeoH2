@@ -24,8 +24,10 @@ import time
 logging.basicConfig(level=logging.ERROR)
 
 # !!! add a way to read demand profiles from any locations within a certain distance of hexagon being considered
-
-def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile, investment_series, basis_fn = None):
+# !!! add upper limit p_nom_max to wind and solar using theo_pv and theo_turbines in each hexagon-- unit is MW 
+def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
+                            wind_max_capacity, pv_max_capacity, 
+                            investment_series, basis_fn = None):
     '''
    Optimizes the size of green hydrogen plant components based on renewable potential, hydrogen demand, and investment parameters. 
 
@@ -53,9 +55,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     TYPE
         DESCRIPTION.
 
-    '''
-    
-    
+    '''    
     # ==================================================================================================================
     # Set up network
     # ==================================================================================================================
@@ -80,9 +80,13 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     # ==================================================================================================================
     # Send the weather data to the model
     # ==================================================================================================================
-    #!!! need to implement a max capacity based on land availability
+    #!!! need to implement a max capacity based on land availability-- p_nom_max
     n.generators_t.p_max_pu['Wind'] = wind_potential
     n.generators_t.p_max_pu['Solar'] = pv_potential
+    
+    n.generators.loc['Wind','p_nom_max'] = wind_max_capacity
+    n.generators.loc['Solar','p_nom_max'] = pv_max_capacity
+    
     
     # ==================================================================================================================
     # Check if the CAPEX input format in Basic_H2_plant is correct, and fix it up if not
@@ -99,15 +103,17 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     # ==================================================================================================================
     # Solve the model
     # ==================================================================================================================
-    solver = 'cbc'
+    solver = 'gurobi'
     if basis_fn is None:
         n.lopf(solver_name=solver,
+               solver_options = {'LogToConsole':0, 'OutputFlag':0},
                pyomo=False,
                extra_functionality=aux.extra_functionalities,
                store_basis = True
                )
     else:
         n.lopf(solver_name=solver,
+               solver_options = {'LogToConsole':0, 'OutputFlag':0},
                pyomo=False,
                extra_functionality=aux.extra_functionalities,
                warmstart = basis_fn,
@@ -192,21 +198,25 @@ for location in demand_centers:
                                     pv_profile.sel(hexagon = hexagon),
                                     wind_profile.time,
                                     hydrogen_demand_trucking,
+                                    hexagons.loc[hexagon,'theo_turbines'],
+                                    hexagons.loc[hexagon,'theo_pv'],
                                     investment_series, 
                                     )
         else:
-            print('Warmstarting...')
+            # print('Warmstarting...')
             lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                     pv_profile.sel(hexagon = hexagon),
                                     wind_profile.time,
                                     hydrogen_demand_trucking,
+                                    hexagons.loc[hexagon,'theo_turbines'],
+                                    hexagons.loc[hexagon,'theo_pv'],
                                     investment_series,
                                     basis_fn = bases
                                     )
         lcohs_trucking[hexagon]=lcoh
         bases = basis_fn
-    no_compute = time.process_time()-start
-    print(str(no_compute) + ' s')
+    trucking_time = time.process_time()-start
+    print(str(trucking_time) + ' s')
     # %% calculate cost of production for pipeline demand profile
     lcohs_pipeline = np.zeros(len(pv_profile.hexagon))
     bases = None
@@ -222,21 +232,25 @@ for location in demand_centers:
                                     pv_profile.sel(hexagon = hexagon),
                                     wind_profile.time,
                                     hydrogen_demand_pipeline,
+                                    hexagons.loc[hexagon,'theo_turbines'],
+                                    hexagons.loc[hexagon,'theo_pv'],
                                     investment_series,
                                     )
         else:
-            print('Warmstarting...')
+            # print('Warmstarting...')
             lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                     pv_profile.sel(hexagon = hexagon),
                                     wind_profile.time,
                                     hydrogen_demand_pipeline,
+                                    hexagons.loc[hexagon,'theo_turbines'],
+                                    hexagons.loc[hexagon,'theo_pv'],
                                     investment_series,
                                     basis_fn = bases
                                     )
         lcohs_pipeline[hexagon]=lcoh
         bases = basis_fn
-    no_compute = time.process_time()-start
-    print(str(no_compute) + ' s')
+    pipeline_time = time.process_time()-start
+    print(str(pipeline_time) + ' s')
 
     # add optimal LCOH for each hexagon to hexagon file
     hexagons[f'{location} LCOH trucking'] = lcohs_trucking
@@ -258,8 +272,14 @@ hexagons.to_crs(crs.proj4_init).plot(
     column = 'Nairobi LCOH trucking',
     legend = True,
     cmap = 'viridis_r',
-    legend_kwds={'label':'Production LCOH [euros/kg]'},    
+    legend_kwds={'label':'Production LCOH [euros/kg]'},
+    missing_kwds={
+        "color": "lightgrey",
+        "label": "Missing values",
+    },    
 )
+ax.set_title('Nairobi LCOH trucking')
+
 fig = plt.figure(figsize=(10,5))
 
 ax = plt.axes(projection=crs)
@@ -271,8 +291,12 @@ hexagons.to_crs(crs.proj4_init).plot(
     legend = True,
     cmap = 'viridis_r',
     legend_kwds={'label':'Production LCOH [euros/kg]'},    
+    missing_kwds={
+        "color": "lightgrey",
+        "label": "Missing values",
+    },    
 )
-
+ax.set_title('Mombasa LCOH trucking')
 # %% cost difference about 1-4 euro cents per kg H2 or 4-15% more expensive, with a larger difference in the cheapest areas
 # at 100 t of annual demand-- difference smaller for larger demands
 
