@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import cartopy.crs as ccrs
 import p_H2_aux as aux
-from functions import NPV
+from functions import CRF
 import numpy as np
 import logging
 import time
@@ -24,7 +24,6 @@ import time
 logging.basicConfig(level=logging.ERROR)
 
 # !!! add a way to read demand profiles from any locations within a certain distance of hexagon being considered
-# !!! add upper limit p_nom_max to wind and solar using theo_pv and theo_turbines in each hexagon-- unit is MW 
 def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
                             wind_max_capacity, pv_max_capacity, 
                             investment_series, basis_fn = None):
@@ -94,11 +93,11 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     # specify technology-specific and country-specific WACC and lifetime here
     # !!! need to find a capital cost per MWh of hydrogen storage, using what Nick provided for now
     n.generators.loc['Wind','capital_cost'] = n.generators.loc['Wind','capital_cost']\
-        * NPV(investment_series['Wind interest rate'], investment_series['Wind lifetime (years)'])
+        * CRF(investment_series['Wind interest rate'], investment_series['Wind lifetime (years)'])
     n.generators.loc['Solar','capital_cost'] = n.generators.loc['Solar','capital_cost']\
-        * NPV(investment_series['Solar interest rate'], investment_series['Solar lifetime (years)'])
+        * CRF(investment_series['Solar interest rate'], investment_series['Solar lifetime (years)'])
     for item in [n.links, n.stores]:
-        item.capital_cost = item.capital_cost * NPV(investment_series['Plant interest rate'],investment_series['Plant lifetime (years)'])
+        item.capital_cost = item.capital_cost * CRF(investment_series['Plant interest rate'],investment_series['Plant lifetime (years)'])
 
     # ==================================================================================================================
     # Solve the model
@@ -150,7 +149,7 @@ hexagons = gpd.read_file('Data/hexagons_with_country.geojson')
 #!!! currently ignoring land-use restrictions-- add later
 # excluder = atlite.gis.ExclusionContainer()
 
-cutout = atlite.Cutout("Cutouts/Kenya-2022-07.nc")
+cutout = atlite.Cutout("Cutouts/Kenya-2022.nc")
 
 layout = cutout.uniform_layout()
 # can add hydro layout here if desired using hydrogen potential map
@@ -182,7 +181,6 @@ demand_parameters = pd.read_excel(demand_excel_path,
 demand_centers = demand_parameters.index
 
 for location in demand_centers:
-    # interest_rate = 0.08
     lcohs_trucking = np.zeros(len(pv_profile.hexagon))
     bases = None
     demand_path=f'Resources/{location} trucking demand.xlsx'
@@ -253,8 +251,8 @@ for location in demand_centers:
     print(str(pipeline_time) + ' s')
 
     # add optimal LCOH for each hexagon to hexagon file
-    hexagons[f'{location} LCOH trucking'] = lcohs_trucking
-    hexagons[f'{location} LCOH pipeline'] = lcohs_pipeline
+    hexagons[f'{location} trucking production cost'] = lcohs_trucking
+    hexagons[f'{location} pipeline production cost'] = lcohs_pipeline
     
 hexagons.to_file('Resources/hex_lcoh.geojson', driver='GeoJSON')
 
@@ -269,7 +267,7 @@ ax.set_axis_off()
 
 hexagons.to_crs(crs.proj4_init).plot(
     ax=ax,
-    column = 'Nairobi LCOH trucking',
+    column = 'Nairobi trucking production cost',
     legend = True,
     cmap = 'viridis_r',
     legend_kwds={'label':'Production LCOH [euros/kg]'},
@@ -278,7 +276,8 @@ hexagons.to_crs(crs.proj4_init).plot(
         "label": "Missing values",
     },    
 )
-ax.set_title('Nairobi LCOH trucking')
+ax.set_title('Nairobi trucking production cost')
+
 
 fig = plt.figure(figsize=(10,5))
 
@@ -287,7 +286,26 @@ ax.set_axis_off()
 
 hexagons.to_crs(crs.proj4_init).plot(
     ax=ax,
-    column = 'Mombasa LCOH trucking',
+    column = 'Nairobi pipeline production cost',
+    legend = True,
+    cmap = 'viridis_r',
+    legend_kwds={'label':'Production LCOH [euros/kg]'},
+    missing_kwds={
+        "color": "lightgrey",
+        "label": "Missing values",
+    },    
+)
+ax.set_title('Nairobi pipeline production cost')
+
+
+fig = plt.figure(figsize=(10,5))
+
+ax = plt.axes(projection=crs)
+ax.set_axis_off()
+
+hexagons.to_crs(crs.proj4_init).plot(
+    ax=ax,
+    column = 'Mombasa trucking production cost',
     legend = True,
     cmap = 'viridis_r',
     legend_kwds={'label':'Production LCOH [euros/kg]'},    
@@ -296,23 +314,23 @@ hexagons.to_crs(crs.proj4_init).plot(
         "label": "Missing values",
     },    
 )
-ax.set_title('Mombasa LCOH trucking')
+ax.set_title('Mombasa trucking production cost')
 # %% cost difference about 1-4 euro cents per kg H2 or 4-15% more expensive, with a larger difference in the cheapest areas
 # at 100 t of annual demand-- difference smaller for larger demands
 
-hexagons['trucking extra cost'] = hexagons['LCOH trucking']/hexagons['LCOH pipeline']-1
+# hexagons['trucking extra cost'] = hexagons['trucking production cost']/hexagons['pipeline production cost']-1
 
-fig = plt.figure(figsize=(10,5))
+# fig = plt.figure(figsize=(10,5))
 
-ax = plt.axes(projection=crs)
-ax.set_axis_off()
+# ax = plt.axes(projection=crs)
+# ax.set_axis_off()
 
-hexagons.to_crs(crs.proj4_init).plot(
-    ax=ax,
-    column = 'trucking extra cost',
-    legend = True,
-    cmap = 'viridis_r',
-    legend_kwds={'label':'Production LCOH [euros/kg]'},    
-)
+# hexagons.to_crs(crs.proj4_init).plot(
+#     ax=ax,
+#     column = 'trucking extra cost',
+#     legend = True,
+#     cmap = 'viridis_r',
+#     legend_kwds={'label':'Production LCOH [euros/kg]'},    
+# )
 
 
