@@ -18,22 +18,16 @@ Calculate cost of pipeline transport and demand profile based on optimal size
 
 """
 
-# from calendar import c, prcal
-# from turtle import color, distance
 import geopandas as gpd
-# from matplotlib import markers
 import numpy as np
 import pandas as pd
-# import matplotlib.pyplot as plt                 #see: https://geopandas.org/en/stable/docs/user_guide/mapping.html for plotting
 from functions import CRF, cheapest_trucking_strategy, h2_conversion_stand, cheapest_pipeline_strategy
-# from cmath import nan, pi
 from shapely.geometry import Point
 import shapely.geometry
 import shapely.wkt
 import geopy.distance
-# import PySimpleGUI as sg 
-# import math
-# from xlsxwriter import Workbook
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
 
 #%% Data Input
 # Hexagon file
@@ -45,20 +39,6 @@ demand_parameters = 'Parameters/demand_parameters.xlsx'
 investment_excel_path = 'Parameters/investment_parameters.xlsx'
 
 #%% load data from technology parameters Excel file
-# 2D data is a dataframe, 1D data is a series
-# elec_tech_data = pd.read_excel(technology_parameters,
-#                                sheet_name= 'Electricity',
-#                                index_col='Technology')
-
-# ely_tech_data = pd.read_excel(technology_parameters,
-#                               sheet_name= 'Electrolysis',
-#                               index_col='Parameter'
-#                               ).squeeze("columns")
-
-# wind_tech_data = pd.read_excel(technology_parameters,
-#                                sheet_name='Wind turbine',
-#                                index_col='Parameter'
-#                                ).squeeze("columns")
 
 infra_data = pd.read_excel(technology_parameters,
                            sheet_name='Infra',
@@ -88,29 +68,24 @@ road_construction = global_data['Road construction allowed']
 road_capex_long = infra_data.at['Long road','CAPEX']            #â¬/km from John Hine, converted to Euro (Assumed earth to paved road)
 road_capex_short = infra_data.at['Short road','CAPEX']         #â¬/km for raods < 10 km, from John Hine, converted to Euro (Assumed earth to paved road)
 road_opex = infra_data.at['Short road','OPEX']                 #â¬/km/year from John Hine, converted to Euro (Assumed earth to paved road)
-# road_lifetime = infra_data.at['Short road','Lifetime']             #years, assumption
-days_of_storage = 0
 
 #%% calculate cost of hydrogen state conversion and transportation for demand
-# loop through all demand centers-- maybe each hexagon should only calculate this for the nearest demand 
-# center, because on the continential scale this is a lot of calculations for distant demand centers
+# loop through all demand centers-- limit this on continential scale
 for d in demand_center_list.index:
     demand_location = Point(demand_center_list.loc[d,'Lat [deg]'], demand_center_list.loc[d,'Lon [deg]'])
     distance_to_demand = np.empty(len(hexagon))
     hydrogen_quantity = demand_center_list.loc[d,'Annual demand [kg/a]']
     road_construction_costs = np.empty(len(hexagon))
-    trucking_states = np.empty(len(hexagon),dtype='S7')
+    trucking_states = np.empty(len(hexagon),dtype='<U10')
     trucking_costs = np.empty(len(hexagon))
     pipeline_costs = np.empty(len(hexagon))
-
-    demand_fid = 0
     demand_state = demand_center_list.loc[d,'Demand state']
+    
     if demand_state not in ['500 bar','LH2','NH3']:
         raise NotImplementedError(f'{demand_state} demand not supported.')
-    #%% loop through all hexagons
+
     for i in range(len(hexagon)):
-        # %% calculate distance to demand for each hexagon
-        # calculate distance between each hexagon and demand center
+        # calculate distance to demand for each hexagon
         poly = shapely.wkt.loads(str(hexagon['geometry'][i]))
         center = poly.centroid
         demand_coords = (demand_center_list.loc[d,'Lat [deg]'], demand_center_list.loc[d,'Lon [deg]'])
@@ -120,7 +95,7 @@ for d in demand_center_list.index:
         distance_to_demand[i] = dist
 
         #!!! maybe this is the place to set a restriction based on distance to demand center-- for all hexagons with a distance below some cutoff point
-        #%% label demand location under consideration
+        # label demand location under consideration
         if hexagon['geometry'][i].contains(demand_location) == True:
             demand_fid = i
             # calculate cost of converting hydrogen to ammonia for local demand (i.e. no transport)
@@ -146,7 +121,7 @@ for d in demand_center_list.index:
                 pipeline_costs.append(local_conversion_cost)
         # determine elec_cost at demand to determine potential energy costs
         # elec_costs_at_demand = float(hexagon['cheapest_elec_cost'][demand_fid])/1000
-        #%% calculate cost of constructing a road to each hexagon-- road construction condition?
+        # calculate cost of constructing a road to each hexagon
         if road_construction == True:
             if hexagon['road_dist'][i]==0:
                 road_construction_costs[i] = 0.
@@ -188,7 +163,7 @@ for d in demand_center_list.index:
         elif hexagon['road_dist'][i]>0: 
             trucking_costs[i] = np.nan
             trucking_states[i] = np.nan
-# %% pipeline costs
+        # pipeline costs
         if pipeline_construction== True:
         
             pipeline_cost, pipeline_type = cheapest_pipeline_strategy(demand_state,
@@ -203,8 +178,7 @@ for d in demand_center_list.index:
         else:
             pipeline_costs[i] = np.nan
 
-    #%% variables to save for each demand scenario
-    
+    # variables to save for each demand scenario
     hexagon[f'{d} road construction costs'] = road_construction_costs/hydrogen_quantity
     hexagon[f'{d} trucking transport and conversion costs'] = trucking_costs # cost of road construction, supply conversion, trucking transport, and demand conversion
     hexagon[f'{d} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
@@ -213,9 +187,6 @@ for d in demand_center_list.index:
 hexagon.to_file('Resources/hex_transport.geojson', driver='GeoJSON')
 
 #%% plot results
-
-import cartopy.crs as ccrs
-import matplotlib.pyplot as plt
 
 crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
 for demand_center in demand_center_list.index:
@@ -246,8 +217,6 @@ for demand_center in demand_center_list.index:
     ax = plt.axes(projection=crs)
     ax.set_axis_off()
     
-    
-    
     hexagon.to_crs(crs.proj4_init).plot(
         ax=ax,
         column = f'{demand_center} pipeline transport and conversion costs',
@@ -260,28 +229,3 @@ for demand_center in demand_center_list.index:
         },    
     )
     ax.set_title(f'{demand_center} pipeline transport costs')
-    
-    fig = plt.figure(figsize=(10,5))
-    
-    ax = plt.axes(projection=crs)
-    ax.set_axis_off()
-    
-    
-    
-    hexagon.to_crs(crs.proj4_init).plot(
-        ax=ax,
-        column = f'{demand_center} trucking state',
-        legend = True,
-        cmap = 'viridis_r',
-        legend_kwds={'label':'Pipeline cost [euros/kg]'},
-        missing_kwds={
-            "color": "lightgrey",
-            "label": "Missing values",
-        },    
-    )
-    ax.set_title(f'{demand_center} pipeline transport costs')
-    
-
-
-
-#%% identify lowest-cost strategy: trucking vs. pipeline
