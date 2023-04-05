@@ -2,9 +2,9 @@
 import pandas as pd
 import numpy as np
 
-def NPV(interest,lifetime):
+def CRF(interest,lifetime):
     '''
-    Calculates the present value factor of a capital investment.
+    Calculates the capital recovery factor of a capital investment.
 
     Parameters
     ----------
@@ -15,17 +15,17 @@ def NPV(interest,lifetime):
 
     Returns
     -------
-    NPV : float
+    CRF : float
         present value factor.
 
     '''
     interest = float(interest)
     lifetime = float(lifetime)
 
-    NPV = (((1+interest)**lifetime)-1)/(((1+interest)**lifetime)*interest)
-    return NPV
+    CRF = (((1+interest)**lifetime)*interest)/(((1+interest)**lifetime)-1)
+    return CRF
 
-transport_excel_path = "Data/transport_parameters.xlsx"
+transport_excel_path = "Parameters/transport_parameters.xlsx"
 
 def trucking_costs(transport_state, distance, quantity, interest, excel_path):
     '''
@@ -97,7 +97,7 @@ def trucking_costs(transport_state, distance, quantity, interest, excel_path):
         fuel_costs = (round(amount_deliveries_needed+0.5)*2*distance*365/100)*diesel_consumption*diesel_price
         wages = round(amount_deliveries_needed+0.5) * ((distance/average_truck_speed)*2+loading_unloading_time) * working_days * costs_for_driver
 
-    annual_costs = (capex_trucks/NPV(interest,truck_lifetime)+capex_trailor/NPV(interest,trailor_lifetime))\
+    annual_costs = (capex_trucks*CRF(interest,truck_lifetime)+capex_trailor*CRF(interest,trailor_lifetime))\
         + capex_trucks*spec_opex_truck + capex_trailor*spec_opex_trailor + fuel_costs + wages
     return annual_costs
 
@@ -109,7 +109,7 @@ def trucking_costs(transport_state, distance, quantity, interest, excel_path):
 
 
 
-conversion_excel_path = "Data/conversion_parameters.xlsx"
+conversion_excel_path = "Parameters/conversion_parameters.xlsx"
 
 def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, interest):
     '''
@@ -184,7 +184,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 
         capex_compressor = capex_coefficient * ((daily_throughput)**0.6038)
 
-        annual_costs = (capex_compressor/NPV(interest,compressor_lifetime))\
+        annual_costs = (capex_compressor*CRF(interest,compressor_lifetime))\
             + (capex_compressor*opex_compressor)\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -212,7 +212,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
             +capex_linear_coefficient*daily_throughput\
                 +capex_constant
 
-        annual_costs = (capex_liquid_plant/NPV(interest,liquid_plant_lifetime))\
+        annual_costs = (capex_liquid_plant*CRF(interest,liquid_plant_lifetime))\
             + (capex_liquid_plant*opex_liquid_plant)\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -240,7 +240,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         capex_hydrogenation = capex_coefficient * quantity
 
         # why are daily carrier costs included in net present value calculation?
-        annual_costs = (capex_hydrogenation+costs_carrier*ratio_carrier*daily_throughput)/NPV(interest, hydrogenation_lifetime)\
+        annual_costs = (capex_hydrogenation+costs_carrier*ratio_carrier*daily_throughput)*CRF(interest, hydrogenation_lifetime)\
             + capex_hydrogenation*opex_hydrogenation\
                 + elec_demand * electricity_costs \
                     + heat_demand*heat_costs
@@ -264,7 +264,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         heat_demand = heat_unit_demand * quantity
         capex_dehydrogenation = capex_coefficient * quantity
         
-        annual_costs = (capex_dehydrogenation/NPV(interest, dehydrogenation_lifetime))\
+        annual_costs = (capex_dehydrogenation*CRF(interest, dehydrogenation_lifetime))\
             + (capex_dehydrogenation*opex_dehydrogenation)\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -289,7 +289,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         heat_demand = heat_unit_demand * quantity
         capex_NH3_plant = capex_coefficient * quantity
 
-        annual_costs = capex_NH3_plant/NPV(interest,NH3_plant_lifetime)\
+        annual_costs = capex_NH3_plant/CRF(interest,NH3_plant_lifetime)\
             + capex_NH3_plant*opex_NH3_plant\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
@@ -314,21 +314,148 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 
         capex_NH3_plant = capex_coefficient * ((quantity/1000/365/24) ** 0.7451)    
 
-        annual_costs = capex_NH3_plant/NPV(interest,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant \
+        annual_costs = capex_NH3_plant*CRF(interest,NH3_plant_lifetime) + capex_NH3_plant*opex_NH3_plant \
             + elec_demand * electricity_costs + heat_demand*heat_costs
             
         return elec_demand, heat_demand, annual_costs
 
     else:
-        print('Conversion costs for {} not currently supported.'.format(final_state))
+        raise NotImplementedError(f'Conversion costs for {final_state} not currently supported.')
 
-def cheapest_transport_strategy(final_state, quantity, distance, 
+# def cheapest_transport_strategy(final_state, quantity, distance, 
+#                                 elec_costs, heat_costs,interest, 
+#                                 elec_costs_demand, days_storage,
+#                                 elec_cost_grid = 0., pipeline = True):
+#     '''
+#     calculates the lowest-cost way to transport hydrogen, either in different states
+#     by truck or via pipeline if allowed
+
+#     Parameters
+#     ----------
+#     final_state : string
+#         final state for hydrogen demand.
+#     quantity : float
+#         annual demand for hydrogen in kg.
+#     distance : float
+#         distance to transport hydrogen.
+#     elec_costs : float
+#         cost per kWh of electricity at hydrogen production site.
+#     heat_costs : float
+#         cost per kWh of heat.
+#     interest : float
+#         interest on capital investments.
+#     elec_costs_demand : float
+#         cost per kWh of electricity at hydrogen demand site.
+#     days_storage : float
+#         number of days of storage to build at production and demand sites.
+#     elec_cost_grid : float
+#         grid electricity costs that pipeline compressors pay. Default 0.
+#     pipeline : boolean
+#         If True, building a pipeline is an option. Default True.
+        
+#     Returns
+#     -------
+#     costs_per_unit : float
+#         storage, conversion, and transport costs for the cheapest option.
+#     cheapest_option : string
+#         the lowest-cost state in which to transport hydrogen by truck.
+
+#     '''
+
+#     storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest)\
+#         + storage_costs(final_state,quantity,days_storage,interest)
+#     storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest)\
+#         + storage_costs(final_state,quantity,days_storage,interest)
+#     storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest)\
+#         + storage_costs(final_state,quantity,days_storage,interest)
+#     storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest)\
+#         + storage_costs(final_state,quantity,days_storage,interest)
+#     storage_costs_pipeline = storage_costs(final_state,quantity,days_storage,interest)
+
+
+#     if final_state == '500 bar':
+#         dist_costs_500bar = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)
+#     elif final_state == 'NH3':
+#         dist_costs_500bar = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest)[2]
+#     else:  
+#         dist_costs_500bar = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest)[2]
+#     if final_state == 'LH2':
+#         dist_costs_lh2 =  storage_costs_lh2\
+#             + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('LH2',distance, quantity,interest,transport_excel_path) 
+#     elif final_state == 'NH3':
+#         dist_costs_lh2 = storage_costs_500bar\
+#             + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest)[2]
+#     else:
+#         dist_costs_lh2 =  storage_costs_lh2\
+#             + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('LH2',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+#     if final_state == 'NH3':
+#         dist_costs_nh3 = storage_costs_nh3 \
+#             + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('NH3',distance, quantity, interest,transport_excel_path) 
+#         dist_costs_lohc = storage_costs_lohc\
+#             + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('LOHC',distance, quantity, interest,transport_excel_path)\
+#                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interest)[2]
+#     else:
+#         dist_costs_nh3 = storage_costs_nh3\
+#             + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('NH3',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+#         dist_costs_lohc = storage_costs_lohc\
+#             + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+#                 + trucking_costs('LOHC',distance, quantity,interest,transport_excel_path)\
+#                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
+#                         + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+#     if pipeline == True:
+#         if final_state == 'NH3':
+#             dist_costs_pipeline = storage_costs_pipeline\
+#                 + pipeline_costs(distance,quantity,elec_cost_grid,interest)[0]\
+#                     + h2_conversion_stand(final_state+'_load', quantity, elec_costs_demand, heat_costs, interest)[2]  
+#         else:
+#             dist_costs_pipeline = storage_costs_pipeline\
+#                 + pipeline_costs(distance,quantity,elec_cost_grid,interest)[0]\
+#                     + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+#     else:
+#         dist_costs_pipeline = np.nan
+
+#     lowest_cost = np.nanmin([dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3,dist_costs_pipeline])
+    
+#     if dist_costs_500bar == lowest_cost:
+#         cheapest_option = '500 bar'
+#     elif dist_costs_lh2 == lowest_cost:
+#         cheapest_option = 'LH2'
+#     elif dist_costs_lohc == lowest_cost:
+#         cheapest_option = 'LOHC'
+#     elif dist_costs_nh3 == lowest_cost: 
+#          cheapest_option = 'NH3'
+#     else:
+#          cheapest_option = pipeline_costs(distance,quantity,elec_cost_grid,interest)[1] 
+    
+#     costs_per_unit = lowest_cost/quantity
+    
+#     return costs_per_unit, cheapest_option
+
+
+def cheapest_trucking_strategy(final_state, quantity, distance, 
                                 elec_costs, heat_costs,interest, 
-                                elec_costs_demand, days_storage,
-                                elec_cost_grid = 0., pipeline = True):
+                                elec_costs_demand, elec_cost_grid = 0.):
     '''
-    calculates the lowest-cost way to transport hydrogen, either in different states
-    by truck or via pipeline if allowed
+    calculates the lowest-cost state to transport hydrogen by truck
 
     Parameters
     ----------
@@ -343,97 +470,61 @@ def cheapest_transport_strategy(final_state, quantity, distance,
     heat_costs : float
         cost per kWh of heat.
     interest : float
-        interest on capital investments.
+        interest on conversion and trucking capital investments (not including roads).
     elec_costs_demand : float
         cost per kWh of electricity at hydrogen demand site.
-    days_storage : float
-        number of days of storage to build at production and demand sites.
     elec_cost_grid : float
         grid electricity costs that pipeline compressors pay. Default 0.
-    pipeline : boolean
-        If True, building a pipeline is an option. Default True.
-        
+    
     Returns
     -------
     costs_per_unit : float
-        storage, conversion, and transport costs for the cheapest option.
+        storage, conversion, and transport costs for the cheapest trucking option.
     cheapest_option : string
         the lowest-cost state in which to transport hydrogen by truck.
 
     '''
 
-    storage_costs_500bar = storage_costs('500 bar',quantity,days_storage,interest)\
-        + storage_costs(final_state,quantity,days_storage,interest)
-    storage_costs_lohc = storage_costs('LOHC',quantity,days_storage,interest)\
-        + storage_costs(final_state,quantity,days_storage,interest)
-    storage_costs_lh2 = storage_costs('LH2',quantity,days_storage,interest)\
-        + storage_costs(final_state,quantity,days_storage,interest)
-    storage_costs_nh3 = storage_costs('NH3',quantity,days_storage,interest)\
-        + storage_costs(final_state,quantity,days_storage,interest)
-    storage_costs_pipeline = storage_costs(final_state,quantity,days_storage,interest)
-
-
     if final_state == '500 bar':
-        dist_costs_500bar = storage_costs_500bar\
-            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)
     elif final_state == 'NH3':
-        dist_costs_500bar = storage_costs_500bar\
-            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)\
                     + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest)[2]
     else:  
-        dist_costs_500bar = storage_costs_500bar\
-            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)\
                     + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest)[2]
     if final_state == 'LH2':
-        dist_costs_lh2 =  storage_costs_lh2\
-            + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('LH2',distance, quantity,interest,transport_excel_path) 
     elif final_state == 'NH3':
-        dist_costs_lh2 = storage_costs_500bar\
-            + h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_lh2 = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('500 bar',distance,quantity,interest,transport_excel_path)\
                     + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest)[2]
     else:
-        dist_costs_lh2 =  storage_costs_lh2\
-            + h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('LH2',distance, quantity,interest,transport_excel_path)\
                     + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
     if final_state == 'NH3':
-        dist_costs_nh3 = storage_costs_nh3 \
-            + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('NH3',distance, quantity, interest,transport_excel_path) 
-        dist_costs_lohc = storage_costs_lohc\
-            + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('LOHC',distance, quantity, interest,transport_excel_path)\
                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
                         + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interest)[2]
     else:
-        dist_costs_nh3 = storage_costs_nh3\
-            + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('NH3',distance, quantity,interest,transport_excel_path)\
                     + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
                         + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
-        dist_costs_lohc = storage_costs_lohc\
-            + h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
+        dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('LOHC',distance, quantity,interest,transport_excel_path)\
                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
                         + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
-    if pipeline == True:
-        if final_state == 'NH3':
-            dist_costs_pipeline = storage_costs_pipeline\
-                + pipeline_costs(distance,quantity,elec_cost_grid,interest)[0]\
-                    + h2_conversion_stand(final_state+'_load', quantity, elec_costs_demand, heat_costs, interest)[2]  
-        else:
-            dist_costs_pipeline = storage_costs_pipeline\
-                + pipeline_costs(distance,quantity,elec_cost_grid,interest)[0]\
-                    + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
-    else:
-        dist_costs_pipeline = np.nan
 
-    lowest_cost = np.nanmin([dist_costs_500bar,dist_costs_lh2,dist_costs_lohc,dist_costs_nh3,dist_costs_pipeline])
+    lowest_cost = np.nanmin([dist_costs_500bar, dist_costs_lh2, dist_costs_lohc, dist_costs_nh3])
     
     if dist_costs_500bar == lowest_cost:
         cheapest_option = '500 bar'
@@ -443,15 +534,63 @@ def cheapest_transport_strategy(final_state, quantity, distance,
         cheapest_option = 'LOHC'
     elif dist_costs_nh3 == lowest_cost: 
          cheapest_option = 'NH3'
-    else:
-         cheapest_option = pipeline_costs(distance,quantity,elec_cost_grid,interest)[1] 
     
     costs_per_unit = lowest_cost/quantity
     
     return costs_per_unit, cheapest_option
 
+    
+    
+def cheapest_pipeline_strategy(final_state, quantity, distance, 
+                                elec_costs, heat_costs,interest, 
+                                elec_costs_demand,
+                                elec_cost_grid = 0.):
+    '''
+    calculates the lowest-cost way to transport hydrogen via pipeline
+
+    Parameters
+    ----------
+    final_state : string
+        final state for hydrogen demand.
+    quantity : float
+        annual demand for hydrogen in kg.
+    distance : float
+        distance to transport hydrogen.
+    elec_costs : float
+        cost per kWh of electricity at hydrogen production site.
+    heat_costs : float
+        cost per kWh of heat.
+    interest : float
+        interest on pipeline capital investments.
+    elec_costs_demand : float
+        cost per kWh of electricity at hydrogen demand site.
+    elec_cost_grid : float
+        grid electricity costs that pipeline compressors pay. Default 0.
+
+    Returns
+    -------
+    costs_per_unit : float
+        storage, conversion, and transport costs for the cheapest option.
+    cheapest_option : string
+        the lowest-cost state in which to transport hydrogen by truck.
+
+    '''
+
+    if final_state == 'NH3':
+        dist_costs_pipeline = pipeline_costs(distance,quantity,elec_cost_grid,interest)[0]\
+                + h2_conversion_stand(final_state+'_load', quantity, elec_costs_demand, heat_costs, interest)[2]  
+    else:
+        dist_costs_pipeline = pipeline_costs(distance,quantity,elec_cost_grid,interest)[0]\
+                + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
+
+    costs_per_unit = dist_costs_pipeline/quantity
+    cheapest_option = pipeline_costs(distance, quantity, elec_cost_grid, interest)[1] 
+
+    return costs_per_unit, cheapest_option
+
+
 #Only new pipelines
-pipeline_excel_path = "Data/pipeline_parameters.xlsx"
+pipeline_excel_path = "Parameters/pipeline_parameters.xlsx"
 
 def pipeline_costs(distance,quantity,elec_cost,interest):
     '''
@@ -529,8 +668,8 @@ def pipeline_costs(distance,quantity,elec_cost,interest):
     capex_pipeline = pipeline_parameters['Pipeline capex (euros)']
     capex_compressor = pipeline_parameters['Compressor capex (euros)']
     
-    capex_annual = ((capex_pipeline*distance)/NPV(interest,lifetime_pipeline))\
-        + ((capex_compressor*distance)/NPV(interest,lifetime_compressors))
+    capex_annual = ((capex_pipeline*distance)*CRF(interest,lifetime_pipeline))\
+        + ((capex_compressor*distance)*CRF(interest,lifetime_compressors))
     opex_annual = opex*(capex_pipeline+capex_compressor)*distance
     electricity_costs = electricity_demand * distance * quantity * elec_cost
 
@@ -538,52 +677,52 @@ def pipeline_costs(distance,quantity,elec_cost,interest):
 
     return annual_costs, f"{pipeline_type} Pipeline"
 
-storage_excel_path = "Data/storage_parameters.xlsx"
+# storage_excel_path = "Data/storage_parameters.xlsx"
 
 
-def storage_costs(state, quantity, storage_days, interest, excel_path = "Data/storage_parameters.xlsx"):
-    '''
-    calculates the annualized cost of storage for different forms of hydrogen
+# def storage_costs(state, quantity, storage_days, interest, excel_path = "Data/storage_parameters.xlsx"):
+#     '''
+#     calculates the annualized cost of storage for different forms of hydrogen
 
-    Parameters
-    ----------
-    state : string
-        state in which to store hydrogen, one of '500 bar','LH2','LOHC', or 'NH3'.
-    quantity : float
-        amount of hydrogen to store in kg.
-    storage_days : float
-        days of storage.
-    interest : float
-        interest rate to apply to storage capex costs.
-    excel_path : string
-        path to storage_parameters.xlsx file. Default "Data/storage_parameters.xlsx"
-    Returns
-    -------
-    annual_costs : float
-        annualized cost of hydrogen storage.
+#     Parameters
+#     ----------
+#     state : string
+#         state in which to store hydrogen, one of '500 bar','LH2','LOHC', or 'NH3'.
+#     quantity : float
+#         amount of hydrogen to store in kg.
+#     storage_days : float
+#         days of storage.
+#     interest : float
+#         interest rate to apply to storage capex costs.
+#     excel_path : string
+#         path to storage_parameters.xlsx file. Default "Data/storage_parameters.xlsx"
+#     Returns
+#     -------
+#     annual_costs : float
+#         annualized cost of hydrogen storage.
 
-    '''
-    storage_parameters = pd.read_excel(excel_path,
-                                         index_col = 'Parameter'
-                                         ).squeeze('columns')
-    opex = storage_parameters['Opex share (% of capex)']
-    lifetime_storage = storage_parameters['Storage lifetime (a)'] 
+#     '''
+#     storage_parameters = pd.read_excel(excel_path,
+#                                          index_col = 'Parameter'
+#                                          ).squeeze('columns')
+#     opex = storage_parameters['Opex share (% of capex)']
+#     lifetime_storage = storage_parameters['Storage lifetime (a)'] 
 
-    if state == '500 bar':
-        capex_coeff = storage_parameters['500 bar capex coefficient (euros per (kg day)^0.146)']\
-            *((quantity*storage_days/365)**-0.146)
+#     if state == '500 bar':
+#         capex_coeff = storage_parameters['500 bar capex coefficient (euros per (kg day)^0.146)']\
+#             *((quantity*storage_days/365)**-0.146)
     
-    elif state == 'LH2':
-        capex_coeff = storage_parameters['LH2 capex coefficient (euros per kg per day)']
+#     elif state == 'LH2':
+#         capex_coeff = storage_parameters['LH2 capex coefficient (euros per kg per day)']
 
-    elif state == 'LOHC':
-        capex_coeff = storage_parameters['LOHC capex coefficient (euros per kg per day)']
+#     elif state == 'LOHC':
+#         capex_coeff = storage_parameters['LOHC capex coefficient (euros per kg per day)']
     
-    elif state == 'NH3':
-        capex_coeff = storage_parameters['NH3 capex coefficient (euros per kg per day)']
+#     elif state == 'NH3':
+#         capex_coeff = storage_parameters['NH3 capex coefficient (euros per kg per day)']
     
 
-    capex_storage = capex_coeff * (quantity*storage_days/365)
-    annual_costs = (capex_storage/NPV(interest,lifetime_storage)) + opex * capex_storage
+#     capex_storage = capex_coeff * (quantity*storage_days/365)
+#     annual_costs = (capex_storage/CRF(interest,lifetime_storage)) + opex * capex_storage
 
-    return annual_costs
+#     return annual_costs

@@ -8,6 +8,8 @@ Created on Sun Apr  2 12:05:51 2023
 Assigns interest rate to different hexagons for different technology categories
 based on their country.
 
+Just add to optimize_hydrogen_plant.py?
+
 """
 import geopandas as gpd
 
