@@ -73,9 +73,9 @@ def demand_schedule(quantity, transport_state, transport_excel_path,
 
 def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
                             wind_max_capacity, pv_max_capacity, 
-                            investment_series, basis_fn = None):
+                            country_series, basis_fn = None):
     '''
-   Optimizes the size of green hydrogen plant components based on renewable potential, hydrogen demand, and investment parameters. 
+   Optimizes the size of green hydrogen plant components based on renewable potential, hydrogen demand, and country parameters. 
 
     Parameters
     ----------
@@ -85,11 +85,9 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         1D dataarray of per-unit solar potential in hexagon.
     times : xarray DataArray
         1D dataarray with timestamps for wind and solar potential.
-    country : string
-        country in which hexagon is located.
     demand_profile : pandas DataFrame
         hourly dataframe of hydrogen demand in kg.
-    investment_series : pandas Series
+    country_series : pandas Series
         interest rate and lifetime information.
     basis_fn : string, optional
         path to basis function for warmstart. The default is None.
@@ -131,11 +129,11 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
 
     # specify technology-specific and country-specific WACC and lifetime here
     n.generators.loc['Wind','capital_cost'] = n.generators.loc['Wind','capital_cost']\
-        * CRF(investment_series['Wind interest rate'], investment_series['Wind lifetime (years)'])
+        * CRF(country_series['Wind interest rate'], country_series['Wind lifetime (years)'])
     n.generators.loc['Solar','capital_cost'] = n.generators.loc['Solar','capital_cost']\
-        * CRF(investment_series['Solar interest rate'], investment_series['Solar lifetime (years)'])
+        * CRF(country_series['Solar interest rate'], country_series['Solar lifetime (years)'])
     for item in [n.links, n.stores]:
-        item.capital_cost = item.capital_cost * CRF(investment_series['Plant interest rate'],investment_series['Plant lifetime (years)'])
+        item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
 
     # Solve the model
     solver = 'gurobi'
@@ -168,8 +166,8 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
 
 transport_excel_path = "Parameters/transport_parameters.xlsx"
 weather_excel_path = "Parameters/weather_parameters.xlsx"
-investment_excel_path = 'Parameters/investment_parameters.xlsx'
-investment_parameters = pd.read_excel(investment_excel_path,
+country_excel_path = 'Parameters/country_parameters.xlsx'
+country_parameters = pd.read_excel(country_excel_path,
                                     index_col='Country')
 demand_excel_path = 'Parameters/demand_parameters.xlsx'
 demand_parameters = pd.read_excel(demand_excel_path,
@@ -214,7 +212,7 @@ for location in demand_centers:
             hexagons.loc[hexagon,f'{location} trucking state'],
             transport_excel_path,
             weather_excel_path)
-        investment_series = investment_parameters.loc[hexagons.country[hexagon]]
+        country_series = country_parameters.loc[hexagons.country[hexagon]]
         if bases == None:
             lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
                 optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
@@ -223,7 +221,7 @@ for location in demand_centers:
                                     hydrogen_demand_trucking,
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
-                                    investment_series, 
+                                    country_series, 
                                     )
         else:
             # print('Warmstarting...')
@@ -234,7 +232,7 @@ for location in demand_centers:
                                     hydrogen_demand_trucking,
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
-                                    investment_series,
+                                    country_series,
                                     basis_fn = bases
                                     )
         lcohs_trucking[hexagon] = lcoh
@@ -266,7 +264,7 @@ for location in demand_centers:
             hexagons.loc[hexagon,f'{location} trucking state'],
             transport_excel_path,
             weather_excel_path)
-        investment_series = investment_parameters.loc[hexagons.country[hexagon]]
+        country_series = country_parameters.loc[hexagons.country[hexagon]]
         if bases == None:
             lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
                 optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
@@ -275,7 +273,7 @@ for location in demand_centers:
                                     hydrogen_demand_pipeline,
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
-                                    investment_series,
+                                    country_series,
                                     )
         else:
             # print('Warmstarting...')
@@ -286,7 +284,7 @@ for location in demand_centers:
                                     hydrogen_demand_pipeline,
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
-                                    investment_series,
+                                    country_series,
                                     basis_fn = bases
                                     )
         lcohs_pipeline[hexagon]=lcoh
