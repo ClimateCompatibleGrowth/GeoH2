@@ -268,7 +268,8 @@ for location in demand_centers:
             weather_excel_path)
         investment_series = investment_parameters.loc[hexagons.country[hexagon]]
         if bases == None:
-            lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+            lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
+                optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                     pv_profile.sel(hexagon = hexagon),
                                     wind_profile.time,
                                     hydrogen_demand_pipeline,
@@ -278,7 +279,8 @@ for location in demand_centers:
                                     )
         else:
             # print('Warmstarting...')
-            lcoh, basis_fn = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+            lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
+                optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                     pv_profile.sel(hexagon = hexagon),
                                     wind_profile.time,
                                     hydrogen_demand_pipeline,
