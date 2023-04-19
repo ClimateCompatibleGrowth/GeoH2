@@ -7,11 +7,7 @@ Created on Sun Mar 26 16:52:59 2023
 Contains code originally written by Leander MÃ¼ller, RWTH Aachen University
 
 Calculates the cost-optimal hydrogen transportation strategy to the nearest demand center.
-Also includes the optimal transportation strategy for both pipelines and trucking
-to input as a demand profile into hydrogen plant optimization
 
-
-Calculate cost of road transport and demand profile based on optimal schedule of shipments
 Calculate cost of pipeline transport and demand profile based on optimal size
 
 

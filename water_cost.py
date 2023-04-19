@@ -5,7 +5,7 @@ Created on Wed Apr  5 13:26:19 2023
 
 @author: Claire Halloran, University of Oxford
 
-Water costs for hydrogen production in each hexagons
+Water costs for hydrogen production in each hexagon
 
 
 """
