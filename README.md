@@ -135,3 +135,14 @@ You can run this script by entering the following command in your terminal:
 `.../GEOH2 % python total_hydrogen_cost.py`
 
 This script will take a few seconds to run.
+
+# Limitations
+
+This model considers only greenfield wind and solar plants for hydrogen production. Therefore it does not consider using grid electricity or existing generation for hydrogen production.
+
+While the design of the green hydrogen plant is convex and therefore guarenteed to find the global optimum solution if it exists, the selection of the trucking strategy is greedy to avoid the long computation times and potential computational intractability associated with a mixed-integer optimization problem.
+
+Currently, only land transport is considered in the model. To calculate the cost of hydrogen production for export, any additional costs for conversion and transport via ship or undersea pipeline must be added in post-processing.
+
+The availability of water for electrolysis is not limited in regions that could potentially face drought, and a single prices for freshwater and ocean water are used throughout the modeled area.
+
