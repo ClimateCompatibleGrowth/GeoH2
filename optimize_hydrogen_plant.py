@@ -26,12 +26,12 @@ logging.basicConfig(level=logging.ERROR)
 def demand_schedule(quantity, transport_state, transport_excel_path,
                              weather_excel_path):
     '''
-    calculates hourly hydrogen demand for truck shipment.
+    calculates hourly hydrogen demand for truck shipment and pipeline transport.
 
     Parameters
     ----------
     quantity : float
-        annual amount of hydrogen to transport.
+        annual amount of hydrogen to transport in kilograms.
     transport_state : string
         state hydrogen is transported in, one of '500 bar', 'LH2', 'LOHC', or 'NH3'.
     transport_excel_path : string
