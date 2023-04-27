@@ -14,9 +14,8 @@ Bring together all previous data to calculate lowest-cost hydrogen
 
 import geopandas as gpd
 import pandas as pd
-import cartopy.crs as ccrs
-import matplotlib.pyplot as plt
 import numpy as np
+
 hexagons = gpd.read_file('Resources/hex_water.geojson')
 demand_excel_path = 'Parameters/demand_parameters.xlsx'
 demand_parameters = pd.read_excel(demand_excel_path,
@@ -42,65 +41,3 @@ for demand_center in demand_centers:
              ])
         
 hexagons.to_file('Resources/hex_total_cost.geojson', driver='GeoJSON')
-
-# %% plot costs
-
-crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
-for demand_center in demand_centers:
-    
-    fig = plt.figure(figsize=(10,5))
-    
-    ax = plt.axes(projection=crs)
-    ax.set_axis_off()
-    
-    hexagons.to_crs(crs.proj4_init).plot(
-        ax=ax,
-        column = f'{demand_center} trucking total cost',
-        legend = True,
-        cmap = 'viridis_r',
-        legend_kwds={'label':'LCOH [euros/kg]'},
-        missing_kwds={
-            "color": "lightgrey",
-            "label": "Missing values",
-        },    
-    )
-    ax.set_title(f'{demand_center} trucking LCOH')
-    
-    crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
-    
-    fig = plt.figure(figsize=(10,5))
-    
-    ax = plt.axes(projection=crs)
-    ax.set_axis_off()
-    
-    hexagons.to_crs(crs.proj4_init).plot(
-        ax=ax,
-        column = f'{demand_center} pipeline total cost',
-        legend = True,
-        cmap = 'viridis_r',
-        legend_kwds={'label':'LCOH [euros/kg]'},
-        missing_kwds={
-            "color": "lightgrey",
-            "label": "Missing values",
-        },    
-    )
-    ax.set_title(f'{demand_center} pipeline LCOH')
-
-    
-    fig = plt.figure(figsize=(10,5))
-    
-    ax = plt.axes(projection=crs)
-    ax.set_axis_off()
-    
-    hexagons.to_crs(crs.proj4_init).plot(
-        ax=ax,
-        column = f'{demand_center} lowest cost',
-        legend = True,
-        cmap = 'viridis_r',
-        legend_kwds={'label':'LCOH [euros/kg]'},
-        missing_kwds={
-            "color": "lightgrey",
-            "label": "Missing values",
-        },    
-    )
-    ax.set_title(f'{demand_center} LCOH')

@@ -14,10 +14,6 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-import cartopy.crs as ccrs
-import matplotlib.pyplot as plt
-
-
 hexagons = gpd.read_file('Resources/hex_lcoh.geojson')
 technology_parameters = "Parameters/technology_parameters.xlsx"
 country_excel_path = 'Parameters/country_parameters.xlsx'
@@ -60,44 +56,3 @@ hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
 hexagons['Lowest water cost'] = h2o_costs
 
 hexagons.to_file('Resources/hex_water.geojson', driver='GeoJSON')
-
-
-# %% plot water costs
-
-
-crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
-fig = plt.figure(figsize=(10,5))
-
-ax = plt.axes(projection=crs)
-ax.set_axis_off()
-
-hexagons.to_crs(crs.proj4_init).plot(
-    ax=ax,
-    column = 'Ocean water costs',
-    legend = True,
-    cmap = 'viridis_r',
-    legend_kwds={'label':'Water cost [euros/kg H2]'},
-    missing_kwds={
-        "color": "lightgrey",
-        "label": "Missing values",
-    },    
-)
-ax.set_title('Ocean water costs')
-
-fig = plt.figure(figsize=(10,5))
-
-ax = plt.axes(projection=crs)
-ax.set_axis_off()
-
-hexagons.to_crs(crs.proj4_init).plot(
-    ax=ax,
-    column = 'Freshwater costs',
-    legend = True,
-    cmap = 'viridis_r',
-    legend_kwds={'label':'Water cost [euros/kg H2]'},
-    missing_kwds={
-        "color": "lightgrey",
-        "label": "Missing values",
-    },    
-)
-ax.set_title('Freshwater costs')

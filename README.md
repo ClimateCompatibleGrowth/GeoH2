@@ -136,6 +136,16 @@ You can run this script by entering the following command in your terminal:
 
 This script will take a few seconds to run.
 
+# Visualizing results
+
+Visualizes the spatial variation in different costs per kilogram of hydrogen.
+
+You can run this script by entering the following command in your terminal: 
+
+`.../GEOH2 % python map_costs.py`
+
+This script will take a few seconds to run.
+
 # Limitations
 
 This model considers only greenfield wind and solar plants for hydrogen production. Therefore it does not consider using grid electricity or existing generation for hydrogen production.
