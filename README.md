@@ -13,12 +13,13 @@ In the code provided, the specific use case of Kenya is investigated. As the cod
 First, clone the GEOH2 repository using `git`. 
 
 `/some/other/path % cd /some/path/without/spaces`
+
 `/some/path/without/spaces % git clone https://github.com/ClimateCompatibleGrowth/GeoH2.git`
 
 ## Install Python dependencies
 The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `conda` package and environment manager (available for installation [here](https://docs.conda.io/en/latest/miniconda.html)): 
 
-` .../GEOH2 % conda env create -f envs/environment.yaml`
+` .../GEOH2 % conda env create -f environment.yaml`
 
 Then activate this new environment using
 
