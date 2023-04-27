@@ -1,0 +1,24 @@
+name: geoh2
+channels:
+  - defaults
+  - conda-forge
+
+dependencies:
+  - python
+  - atlite
+  - coincbc
+  - geopandas
+  - matplotlib
+  - numpy
+  - openpyxl
+  - pandas
+  - pip
+  - pypsa
+  - shapely=1.8.4
+  - spyder-kernels
+  - xlsxwriter
+
+  - pip:
+    - cdsapi
+    - geopy
+    - PySimpleGUI

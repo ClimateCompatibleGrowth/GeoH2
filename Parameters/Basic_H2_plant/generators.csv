@@ -1,0 +1,3 @@
+name,bus,control,p_nom_extendable,p_nom,capital_cost,marginal_cost
+Wind,Power,Slack,TRUE,0,1.58E+06,0
+Solar,Power,PQ,TRUE,0,1.47E+06,0

@@ -1,0 +1,4 @@
+name,bus0,bus1,carrier,efficiency,p_nom_extendable,p_min_pu,capital_cost,ramp_limit_up,ramp_limit_down,bus2,efficiency2,p_nom_max
+Electrolysis,Power,Hydrogen,AC,0.59,TRUE,0,1.25E+06,,,,,1.00E+06
+Hydrogen Compression,Hydrogen,Hydrogen Storage,H2,1,TRUE,0,0,,,Power,-0.051,1.00E+06
+Hydrogen from storage,Hydrogen Storage,Hydrogen,H2,1,TRUE,0,0,,,,,1.00E+06
