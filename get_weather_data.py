@@ -29,7 +29,7 @@ import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 
-weather_excel_path = "Data/weather_parameters.xlsx"
+weather_excel_path = "Parameters/weather_parameters.xlsx"
 
 weather_parameters = pd.read_excel(weather_excel_path,
                                    index_col = 'Parameters'

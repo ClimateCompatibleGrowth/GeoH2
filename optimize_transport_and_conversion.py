@@ -22,8 +22,6 @@ from shapely.geometry import Point
 import shapely.geometry
 import shapely.wkt
 import geopy.distance
-import cartopy.crs as ccrs
-import matplotlib.pyplot as plt
 
 #%% Data Input
 # Hexagon file
