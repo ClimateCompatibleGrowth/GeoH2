@@ -160,10 +160,11 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
     h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
     print(lcoh)
-    if n.objective == np.nan:
-        basis_fn = None
-    else:
-        basis_fn = n.basis_fn
+    # if n.objective == np.nan:
+    #     basis_fn = None
+    # else:
+    #     basis_fn = n.basis_fn
+    basis_fn = None
     return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn
 
 transport_excel_path = "Parameters/transport_parameters.xlsx"
