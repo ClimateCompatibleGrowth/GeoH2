@@ -159,9 +159,11 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     solar_capacity = n.generators.p_nom_opt['Solar']
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
     h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
-    
     print(lcoh)
-    basis_fn = n.basis_fn
+    if n.objective == np.nan:
+        basis_fn = None
+    else:
+        basis_fn = n.basis_fn
     return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn
 
 transport_excel_path = "Parameters/transport_parameters.xlsx"
@@ -172,11 +174,16 @@ country_parameters = pd.read_excel(country_excel_path,
 demand_excel_path = 'Parameters/demand_parameters.xlsx'
 demand_parameters = pd.read_excel(demand_excel_path,
                                   index_col='Demand center',
-                                  )
+                                  ).squeeze("columns")
 demand_centers = demand_parameters.index
+weather_parameters = pd.read_excel(weather_excel_path,
+                                   index_col = 'Parameters'
+                                   ).squeeze('columns')
+weather_filename = weather_parameters['Filename']
 
 hexagons = gpd.read_file('Resources/hex_transport.geojson')
-cutout = atlite.Cutout("Cutouts/Kenya-2022.nc")
+# !!! change to name of cutout in weather
+cutout = atlite.Cutout('Cutouts/' + weather_filename +'.nc')
 layout = cutout.uniform_layout()
 # can add hydro layout here if desired using hydrogen potential map
 

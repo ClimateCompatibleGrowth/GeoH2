@@ -5,7 +5,7 @@ channels:
 
 dependencies:
   - python
-  - atlite
+  - atlite=0.2.10
   - cartopy
   - geopy
   - geopandas
