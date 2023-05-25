@@ -12,6 +12,7 @@ import geopandas as gpd
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 
 hexagons = gpd.read_file('Resources/hex_total_cost.geojson')
 demand_excel_path = 'Parameters/demand_parameters.xlsx'
@@ -20,6 +21,10 @@ demand_parameters = pd.read_excel(demand_excel_path,
                                   )
 
 demand_centers = demand_parameters.index
+
+if not os.path.exists('Plots'):
+    os.makedirs('Plots')
+
 #%% plot LCOH for each hexagon
 # update central coordinates for area considered
 crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
@@ -42,7 +47,8 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} trucking production cost')
-    
+    plt.savefig(f'Plots/{demand_center} trucking production cost.png',bbox_inches = 'tight', dpi=300)
+
     
     fig = plt.figure(figsize=(10,5))
     
@@ -62,6 +68,8 @@ for demand_center in demand_centers:
     )
     ax.set_title(f'{demand_center} pipeline production cost')
     
+    plt.savefig(f'Plots/{demand_center} pipeline production cost.png',bbox_inches = 'tight', dpi=300)
+
 
     #%% plot transportation costs
     fig = plt.figure(figsize=(10,5))
@@ -85,6 +93,8 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} trucking transport costs')
+    plt.savefig(f'Plots/{demand_center} trucking transport costs.png',bbox_inches = 'tight', dpi=300)
+
     
     fig = plt.figure(figsize=(10,5))
     
@@ -103,6 +113,8 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} pipeline transport costs')
+    plt.savefig(f'Plots/{demand_center} pipeline transport costs.png',bbox_inches = 'tight', dpi=300)
+
     # %% plot total costs
 
     fig = plt.figure(figsize=(10,5))
@@ -122,7 +134,8 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} trucking LCOH')
-    
+    plt.savefig(f'Plots/{demand_center} trucking LCOH.png',bbox_inches = 'tight', dpi=300)
+
     crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
     
     fig = plt.figure(figsize=(10,5))
@@ -142,6 +155,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} pipeline LCOH')
+    plt.savefig(f'Plots/{demand_center} pipeline LCOH.png',bbox_inches = 'tight', dpi=300)
 
     
     fig = plt.figure(figsize=(10,5))
@@ -161,6 +175,8 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} LCOH')
+    plt.savefig(f'Plots/{demand_center} LCOH.png',bbox_inches = 'tight', dpi=300)
+
 # %% plot water costs
 
 fig = plt.figure(figsize=(10,5))
@@ -180,6 +196,7 @@ hexagons.to_crs(crs.proj4_init).plot(
     },    
 )
 ax.set_title('Ocean water costs')
+plt.savefig('Plots/ocean water costs.png',bbox_inches = 'tight', dpi=300)
 
 fig = plt.figure(figsize=(10,5))
 
@@ -198,3 +215,4 @@ hexagons.to_crs(crs.proj4_init).plot(
     },    
 )
 ax.set_title('Freshwater costs')
+plt.savefig('Plots/freshwater costs.png',bbox_inches = 'tight', dpi=300)
