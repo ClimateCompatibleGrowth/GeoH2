@@ -246,7 +246,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         heat_demand = heat_unit_demand * quantity
         capex_NH3_plant = capex_coefficient * quantity
 
-        annual_costs = capex_NH3_plant/CRF(interest,NH3_plant_lifetime)\
+        annual_costs = capex_NH3_plant*CRF(interest,NH3_plant_lifetime)\
             + capex_NH3_plant*opex_NH3_plant\
                 + elec_demand * electricity_costs\
                     + heat_demand*heat_costs
