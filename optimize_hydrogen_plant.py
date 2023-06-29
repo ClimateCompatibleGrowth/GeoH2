@@ -154,7 +154,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
                )
     # Output results
 
-    lcoh = n.objective/(n.loads_t.p_set.sum()[0]*39.4*1000) # convert back to kg H2
+    lcoh = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
     wind_capacity = n.generators.p_nom_opt['Wind']
     solar_capacity = n.generators.p_nom_opt['Solar']
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
