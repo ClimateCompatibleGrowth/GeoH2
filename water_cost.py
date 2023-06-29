@@ -55,4 +55,5 @@ hexagons['Ocean water costs'] = h2o_costs_ocean
 hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
 hexagons['Lowest water cost'] = h2o_costs
 
-hexagons.to_file('Resources/hex_water.geojson', driver='GeoJSON')
+hexagons.to_file('Resources/hex_water.geojson', driver='GeoJSON', encoding='utf-8')
+

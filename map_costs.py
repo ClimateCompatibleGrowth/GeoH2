@@ -42,7 +42,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} trucking production cost')
-    
+    fig.savefig(f'Resources\\{demand_center} trucking production cost.png', bbox_inches='tight')
     
     fig = plt.figure(figsize=(10,5))
     
@@ -61,7 +61,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} pipeline production cost')
-    
+    fig.savefig(f'Resources\\{demand_center} pipeline production cost.png', bbox_inches='tight')
 
     #%% plot transportation costs
     fig = plt.figure(figsize=(10,5))
@@ -85,6 +85,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} trucking transport costs')
+    fig.savefig(f'Resources\\{demand_center} trucking transport cost.png', bbox_inches='tight')
     
     fig = plt.figure(figsize=(10,5))
     
@@ -103,6 +104,8 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} pipeline transport costs')
+    fig.savefig(f'Resources\\{demand_center} pipeline transport cost.png', bbox_inches='tight')
+
     # %% plot total costs
 
     fig = plt.figure(figsize=(10,5))
@@ -122,6 +125,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} trucking LCOH')
+    fig.savefig(f'Resources\\{demand_center} trucking LCOH.png', bbox_inches='tight')
     
     crs = ccrs.Orthographic(central_longitude = 37.5, central_latitude= 0.0)
     
@@ -142,6 +146,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} pipeline LCOH')
+    fig.savefig(f'Resources\\{demand_center} pipeline LCOH.png', bbox_inches='tight')
 
     
     fig = plt.figure(figsize=(10,5))
@@ -161,6 +166,7 @@ for demand_center in demand_centers:
         },    
     )
     ax.set_title(f'{demand_center} LCOH')
+    fig.savefig(f'Resources\\{demand_center} LCOH.png', bbox_inches='tight')
 # %% plot water costs
 
 fig = plt.figure(figsize=(10,5))
@@ -180,6 +186,7 @@ hexagons.to_crs(crs.proj4_init).plot(
     },    
 )
 ax.set_title('Ocean water costs')
+fig.savefig(f'Resources\\Ocean water costs.png', bbox_inches='tight')
 
 fig = plt.figure(figsize=(10,5))
 
@@ -198,3 +205,5 @@ hexagons.to_crs(crs.proj4_init).plot(
     },    
 )
 ax.set_title('Freshwater costs')
+fig.savefig(f'Resources\\Freshwater costs.png', bbox_inches='tight')
+

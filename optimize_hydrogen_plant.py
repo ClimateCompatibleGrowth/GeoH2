@@ -198,7 +198,9 @@ pv_profile = cutout.pv(
 pv_profile = pv_profile.rename(dict(dim_0='hexagon'))
 
 wind_profile = cutout.wind(
-    turbine = 'Vestas_V80_2MW_gridstreamer',
+    # Changed turbine type - was Vestas_V80_2MW_gridstreamer in first run
+    # Other option being explored: NREL_ReferenceTurbine_2020ATB_4MW, Enercon_E126_7500kW
+    turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
     layout = layout,
     shapes = hexagons,
     per_unit = True
@@ -313,4 +315,5 @@ for location in demand_centers:
     hexagons[f'{location} trucking production cost'] = lcohs_trucking
     hexagons[f'{location} pipeline production cost'] = lcohs_pipeline
     
-hexagons.to_file('Resources/hex_lcoh.geojson', driver='GeoJSON')
+hexagons.to_file('Resources/hex_lcoh.geojson', driver='GeoJSON', encoding='utf-8')
+

@@ -40,4 +40,4 @@ for demand_center in demand_centers:
              hexagons.loc[hexagon,f'{demand_center} pipeline total cost']
              ])
         
-hexagons.to_file('Resources/hex_total_cost.geojson', driver='GeoJSON')
+hexagons.to_file('Resources/hex_total_cost.geojson', driver='GeoJSON', encoding='utf-8')

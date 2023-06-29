@@ -26,6 +26,7 @@ import atlite
 # import geopandas as gpd
 import pandas as pd
 # from _helpers import configure_logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -44,7 +45,13 @@ max_lat = weather_parameters['Maximum latitude (deg)']
 filename = weather_parameters['Filename']
 
 
-snapshots = slice(start_date,end_date) # date range to import, end not inclusive
+snapshots = slice(start_date, end_date) # date range to import, end not inclusive
+
+# Create folders for final cutouts and temporary files
+if not os.path.exists('Cutouts'):
+    os.makedirs('Cutouts')
+if not os.path.exists('temp'):
+    os.makedirs('temp')
 
 cutout = atlite.Cutout(
     path="Cutouts/" + filename + ".nc",
@@ -54,4 +61,4 @@ cutout = atlite.Cutout(
     time=snapshots,
 )
 
-cutout.prepare()
+cutout.prepare(tmpdir="temp") # TEMPDIR DEFINITION IS NEW TO FIX ERROR

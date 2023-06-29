@@ -17,5 +17,5 @@ hexagons = gpd.read_file('Data/hex_final.geojson')
 world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres')) # may need to switch to higher res
 countries = world.drop(columns=['pop_est', 'continent', 'iso_a3', 'gdp_md_est'])
 countries = countries.rename(columns={'name':'country'})
-hexagons_with_country = gpd.sjoin(hexagons, countries, op='within')
+hexagons_with_country = gpd.sjoin(hexagons, countries, op='intersects') # changed from "within"
 hexagons_with_country.to_file('Data/hexagons_with_country.geojson', driver='GeoJSON')

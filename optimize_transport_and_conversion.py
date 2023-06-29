@@ -22,10 +22,10 @@ from shapely.geometry import Point
 import shapely.geometry
 import shapely.wkt
 import geopy.distance
+import os
+import json
 
 #%% Data Input
-# Hexagon file
-hexagon = gpd.read_file('Data/hexagons_with_country.geojson')
 
 # Excel file with technology parameters
 technology_parameters = "Parameters/technology_parameters.xlsx"
@@ -60,6 +60,29 @@ road_construction = global_data['Road construction allowed']
 road_capex_long = infra_data.at['Long road','CAPEX']            #â¬/km from John Hine, converted to Euro (Assumed earth to paved road)
 road_capex_short = infra_data.at['Short road','CAPEX']         #â¬/km for raods < 10 km, from John Hine, converted to Euro (Assumed earth to paved road)
 road_opex = infra_data.at['Short road','OPEX']                 #â¬/km/year from John Hine, converted to Euro (Assumed earth to paved road)
+
+# Handle any hexagons at edges in the geojson which are labelled with a country we aren't analyzing
+
+# Read the GeoJSON file
+with open('Data/hexagons_with_country.geojson', 'r') as file:
+    data = json.load(file)
+
+# If the country of any hexagon is not in the country_parameters file, set the country to "Other" instead
+for feature in data['features']:
+    # Access and modify properties
+    if not feature['properties']['country'] in list(country_parameters.index.values):
+        feature['properties']['country'] = "Other"
+
+# Write the modified GeoJSON back to the file
+with open('Data/hexagons_with_country.geojson', 'w') as file:
+    json.dump(data, file)
+
+# Now, load the Hexagon file in geopandas
+hexagon = gpd.read_file('Data/hexagons_with_country.geojson')
+
+# Create Resources folder to save results if it doesn't already exist
+if not os.path.exists('Resources'):
+    os.makedirs('Resources')
 
 #%% calculate cost of hydrogen state conversion and transportation for demand
 # loop through all demand centers-- limit this on continential scale
@@ -181,4 +204,6 @@ for d in demand_center_list.index:
     hexagon[f'{d} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
     hexagon[f'{d} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
 
-hexagon.to_file('Resources/hex_transport.geojson', driver='GeoJSON')
+# Added force to UTF-8 encoding.
+hexagon.to_file('Resources/hex_transport.geojson', driver='GeoJSON', encoding='utf-8')
+

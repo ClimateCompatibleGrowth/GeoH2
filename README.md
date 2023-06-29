@@ -36,14 +36,11 @@ The hexagon file needs to filled with the following attributes:
 
   - waterbody_dist: Distance to selected waterbodies in area of interest
   - waterway_dist: Distance to selected waterways in area of interest
-  - ocean_dist: Distance to ocean coastline 
-  
+  - ocean_dist: Distance to ocean coastline
   - grid_dist: Distance to transmission network
-  
   - road_dist: Distance to road network
-
-  - theo_pv: Theoretical Potential of standarized PV plants       --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
-  - theo_wind: Theoretical Potential of standarized PV plants     --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
+  - theo_pv: Theoretical potential of standarized PV plants       --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
+  - theo_wind: Theoretical potential of standarized wind turbines     --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
   
 Once you have created a hexagon file with these features, save it in the `Data` folder.
   
@@ -60,7 +57,8 @@ Required input parameters include the spatial area of interest, total annual dem
 - **Basic H2 plant** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
 
 - **Weather parameters:** `weather_parameters.xlsx` includes the locational and time range to download historical weather data from the ERA5 reanalysis dataset to calculate wind and solar generation potential. At least a year is recommended for the weather time range to capture seasonal variation in renewable potential, but longer time ranges will increase the computation time for optimizing the design of a hydrogen plant.
-    - Note that the end date is not inclusive, so if you want to download weather data for all of 2022, you should input 01-01-2023 as the end date.
+    - Note: The end date is not inclusive, so if you want to download weather data for all of 2022, you should input 2023/01/01 as the end date. 
+    - Note: The dates need to be presented in the following format: YYYY/MM/DD. If this is auto-corrected to a different format by excel, be sure to manually re-adjust it to be this format, or the download script will not recognise the date properly.
 
 - **Technology parameters:** ` technology_parameters.xlsx` includes water parameters, road infrastructure parameters, and whether road and hydrogen pipeline construction is allowed.
 
@@ -145,7 +143,11 @@ You can run this script by entering the following command in your terminal:
 
 `.../GEOH2 % python map_costs.py`
 
-This script will take a few seconds to run.
+This script will take a few seconds to run. 
+
+If you encounter the following error in visualisation, you may have a package conflict with geopandas, matplotlib and cartopy: 
+`AttributeError: 'GeoAxesSubplot' object has no attribute '_autoscaleXon'.` 
+To get around this, try creating a new environment using the `environment-plot.yml` file using the same command presented above. This will create an environment named `geoh2-plot` which you can activate and use to run the visualisation script.
 
 # Limitations
 
