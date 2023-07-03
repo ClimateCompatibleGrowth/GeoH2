@@ -132,7 +132,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         * CRF(country_series['Wind interest rate'], country_series['Wind lifetime (years)'])
     n.generators.loc['Solar','capital_cost'] = n.generators.loc['Solar','capital_cost']\
         * CRF(country_series['Solar interest rate'], country_series['Solar lifetime (years)'])
-    for item in [n.links, n.stores]:
+    for item in [n.links, n.stores,n.storage_units]:
         item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
 
     # Solve the model
