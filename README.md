@@ -151,11 +151,13 @@ To get around this, try creating a new environment using the `environment-plot.y
 
 # Limitations
 
-This model considers only greenfield wind and solar plants for hydrogen production. Therefore it does not consider using grid electricity or existing generation for hydrogen production.
+This model considers only greenfield wind and solar plants for hydrogen production. Therefore it does not consider using grid electricity or existing generation for hydrogen production. The model further assumes that all excess electricity is curtailed.
 
 While the design of the green hydrogen plant is convex and therefore guarenteed to find the global optimum solution if it exists, the selection of the trucking strategy is greedy to avoid the long computation times and potential computational intractability associated with a mixed-integer optimization problem.
 
 Currently, only land transport is considered in the model. To calculate the cost of hydrogen production for export, any additional costs for conversion and transport via ship or undersea pipeline must be added in post-processing.
+
+Transport costs are calculated from the center of the hexagon to the demand center. When using large hexagon sizes, this assumption may over- or underestimate transportation costs significantly. Additionally, only path length is considered when calculating the cost of road and pipeline construction. Additional costs due to terrain are not considered.
 
 The availability of water for electrolysis is not limited in regions that could potentially face drought, and a single prices for freshwater and ocean water are used throughout the modeled area.
 
