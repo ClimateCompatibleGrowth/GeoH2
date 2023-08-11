@@ -74,7 +74,7 @@ def demand_schedule(quantity, transport_state, transport_excel_path,
 # in the future, may want to make hexagons a class with different features
 def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
                             wind_max_capacity, pv_max_capacity, 
-                            country_series):
+                            country_series, water_limit = None):
     '''
    Optimizes the size of green hydrogen plant components based on renewable potential, hydrogen demand, and country parameters. 
 
@@ -90,15 +90,42 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         hourly dataframe of hydrogen demand in kg.
     country_series : pandas Series
         interest rate and lifetime information.
+    water_limit : float
+        annual limit on water available for electrolysis in hexagon, in cubic meters. Default is None.
     
     Returns
     -------
-    lcoh : TYPE
-        DESCRIPTION.
-    TYPE
-        DESCRIPTION.
+    lcoh : float
+        levelized cost per kg hydrogen.
+    wind_capacity: float
+        optimal wind capacity in MW.
+    solar_capacity: float
+        optimal solar capacity in MW.
+    electrolyzer_capacity: float
+        optimal electrolyzer capacity in MW.
+    h2_storage: float
+        optimal hydrogen storage capacity in MWh.
+
+
 
     '''    
+    
+    # if a water limit is given, check if hydrogen demand can be met
+    if water_limit != None:
+        # total hydrogen demand in kg
+        total_hydrogen_demand = demand_profile['Demand'].sum()
+        # check if hydrogen demand can be met based on hexagon water availability
+        water_constraint =  total_hydrogen_demand <= water_limit * 111.57 # kg H2 per cubic meter of water
+        if water_constraint == False:
+            print('Not enough water to meet hydrogen demand!')
+            # return null values
+            lcoh = np.nan
+            wind_capacity = np.nan
+            solar_capacity = np.nan
+            electrolyzer_capacity = np.nan
+            h2_storage = np.nan
+            return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage
+    
     # Set up network
     # Import a generic network
     n = pypsa.Network(override_component_attrs=aux.create_override_components())
@@ -133,7 +160,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         * CRF(country_series['Solar interest rate'], country_series['Solar lifetime (years)'])
     for item in [n.links, n.stores,n.storage_units]:
         item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
-
+    
     # Solve the model
     solver = 'gurobi'
     n.lopf(solver_name=solver,
@@ -214,6 +241,7 @@ for location in demand_centers:
                                 hexagons.loc[hexagon,'theo_turbines'],
                                 hexagons.loc[hexagon,'theo_pv'],
                                 country_series, 
+                                water_limit = hexagons.loc[hexagon,'delta_water_m3']
                                 )
         lcohs_trucking[hexagon] = lcoh
         solar_capacities[hexagon] = solar_capacity
@@ -251,6 +279,7 @@ for location in demand_centers:
                                 hexagons.loc[hexagon,'theo_turbines'],
                                 hexagons.loc[hexagon,'theo_pv'],
                                 country_series,
+                                water_limit = hexagons.loc[hexagon,'delta_water_m3'],
                                 )
         lcohs_pipeline[hexagon]=lcoh
         solar_capacities[hexagon] = solar_capacity
