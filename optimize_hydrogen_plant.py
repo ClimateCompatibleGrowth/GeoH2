@@ -71,9 +71,10 @@ def demand_schedule(quantity, transport_state, transport_excel_path,
 
     return trucking_hourly_demand_schedule, pipeline_hourly_demand_schedule
 
+# in the future, may want to make hexagons a class with different features
 def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
                             wind_max_capacity, pv_max_capacity, 
-                            country_series, basis_fn = None):
+                            country_series):
     '''
    Optimizes the size of green hydrogen plant components based on renewable potential, hydrogen demand, and country parameters. 
 
@@ -89,9 +90,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         hourly dataframe of hydrogen demand in kg.
     country_series : pandas Series
         interest rate and lifetime information.
-    basis_fn : string, optional
-        path to basis function for warmstart. The default is None.
-
+    
     Returns
     -------
     lcoh : TYPE
@@ -137,21 +136,11 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
 
     # Solve the model
     solver = 'gurobi'
-    if basis_fn is None:
-        n.lopf(solver_name=solver,
-               solver_options = {'LogToConsole':0, 'OutputFlag':0},
-               pyomo=False,
-               extra_functionality=aux.extra_functionalities,
-               store_basis = True
-               )
-    else:
-        n.lopf(solver_name=solver,
-               solver_options = {'LogToConsole':0, 'OutputFlag':0},
-               pyomo=False,
-               extra_functionality=aux.extra_functionalities,
-               warmstart = basis_fn,
-               store_basis = True
-               )
+    n.lopf(solver_name=solver,
+           solver_options = {'LogToConsole':0, 'OutputFlag':0},
+           pyomo=False,
+           extra_functionality=aux.extra_functionalities,
+           )
     # Output results
 
     lcoh = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
@@ -160,12 +149,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
     h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
     print(lcoh)
-    # if n.objective == np.nan:
-    #     basis_fn = None
-    # else:
-    #     basis_fn = n.basis_fn
-    basis_fn = None
-    return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn
+    return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage
 
 transport_excel_path = "Parameters/transport_parameters.xlsx"
 weather_excel_path = "Parameters/weather_parameters.xlsx"
@@ -213,7 +197,6 @@ for location in demand_centers:
     wind_capacities= np.zeros(len(pv_profile.hexagon))
     electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
     h2_storages= np.zeros(len(pv_profile.hexagon))
-    bases = None
     start = time.process_time()
     # function
     for hexagon in pv_profile.hexagon.data:
@@ -223,34 +206,20 @@ for location in demand_centers:
             transport_excel_path,
             weather_excel_path)
         country_series = country_parameters.loc[hexagons.country[hexagon]]
-        if bases == None:
-            lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
-                optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
-                                    pv_profile.sel(hexagon = hexagon),
-                                    wind_profile.time,
-                                    hydrogen_demand_trucking,
-                                    hexagons.loc[hexagon,'theo_turbines'],
-                                    hexagons.loc[hexagon,'theo_pv'],
-                                    country_series, 
-                                    )
-        else:
-            # print('Warmstarting...')
-            lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
-                optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
-                                    pv_profile.sel(hexagon = hexagon),
-                                    wind_profile.time,
-                                    hydrogen_demand_trucking,
-                                    hexagons.loc[hexagon,'theo_turbines'],
-                                    hexagons.loc[hexagon,'theo_pv'],
-                                    country_series,
-                                    basis_fn = bases
-                                    )
+        lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage =\
+            optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+                                pv_profile.sel(hexagon = hexagon),
+                                wind_profile.time,
+                                hydrogen_demand_trucking,
+                                hexagons.loc[hexagon,'theo_turbines'],
+                                hexagons.loc[hexagon,'theo_pv'],
+                                country_series, 
+                                )
         lcohs_trucking[hexagon] = lcoh
         solar_capacities[hexagon] = solar_capacity
         wind_capacities[hexagon] = wind_capacity
         electrolyzer_capacities[hexagon] = electrolyzer_capacity
         h2_storages[hexagon] = h2_storage
-        bases = basis_fn
     trucking_time = time.process_time()-start
     
     hexagons[f'{location} trucking solar capacity'] = solar_capacities
@@ -266,7 +235,6 @@ for location in demand_centers:
     wind_capacities= np.zeros(len(pv_profile.hexagon))
     electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
     h2_storages= np.zeros(len(pv_profile.hexagon))
-    bases = None
     start = time.process_time()
     for hexagon in pv_profile.hexagon.data:
         hydrogen_demand_trucking, hydrogen_demand_pipeline = demand_schedule(
@@ -275,34 +243,20 @@ for location in demand_centers:
             transport_excel_path,
             weather_excel_path)
         country_series = country_parameters.loc[hexagons.country[hexagon]]
-        if bases == None:
-            lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
-                optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
-                                    pv_profile.sel(hexagon = hexagon),
-                                    wind_profile.time,
-                                    hydrogen_demand_pipeline,
-                                    hexagons.loc[hexagon,'theo_turbines'],
-                                    hexagons.loc[hexagon,'theo_pv'],
-                                    country_series,
-                                    )
-        else:
-            # print('Warmstarting...')
-            lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage, basis_fn =\
-                optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
-                                    pv_profile.sel(hexagon = hexagon),
-                                    wind_profile.time,
-                                    hydrogen_demand_pipeline,
-                                    hexagons.loc[hexagon,'theo_turbines'],
-                                    hexagons.loc[hexagon,'theo_pv'],
-                                    country_series,
-                                    basis_fn = bases
-                                    )
+        lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage =\
+            optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
+                                pv_profile.sel(hexagon = hexagon),
+                                wind_profile.time,
+                                hydrogen_demand_pipeline,
+                                hexagons.loc[hexagon,'theo_turbines'],
+                                hexagons.loc[hexagon,'theo_pv'],
+                                country_series,
+                                )
         lcohs_pipeline[hexagon]=lcoh
         solar_capacities[hexagon] = solar_capacity
         wind_capacities[hexagon] = wind_capacity
         electrolyzer_capacities[hexagon] = electrolyzer_capacity
         h2_storages[hexagon] = h2_storage
-        bases = basis_fn
     pipeline_time = time.process_time()-start
     print(str(pipeline_time) + ' s')
     
