@@ -103,10 +103,10 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         optimal solar capacity in MW.
     electrolyzer_capacity: float
         optimal electrolyzer capacity in MW.
+    battery_capacity: float
+        optimal battery storage capacity in MW/MWh (1 hour batteries).
     h2_storage: float
         optimal hydrogen storage capacity in MWh.
-
-
 
     '''    
     
@@ -123,8 +123,9 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
             wind_capacity = np.nan
             solar_capacity = np.nan
             electrolyzer_capacity = np.nan
+            battery_capacity = np.nan
             h2_storage = np.nan
-            return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage
+            return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, battery_capacity, h2_storage
     
     # Set up network
     # Import a generic network
@@ -174,9 +175,10 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     wind_capacity = n.generators.p_nom_opt['Wind']
     solar_capacity = n.generators.p_nom_opt['Solar']
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
+    battery_capacity = n.storage_units.p_nom_opt['Battery']
     h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
     print(lcoh)
-    return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage
+    return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, battery_capacity, h2_storage
 
 transport_excel_path = "Parameters/transport_parameters.xlsx"
 weather_excel_path = "Parameters/weather_parameters.xlsx"
@@ -223,6 +225,7 @@ for location in demand_centers:
     solar_capacities= np.zeros(len(pv_profile.hexagon))
     wind_capacities= np.zeros(len(pv_profile.hexagon))
     electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
+    battery_capacities = np.zeros(len(pv_profile.hexagon))
     h2_storages= np.zeros(len(pv_profile.hexagon))
     start = time.process_time()
     # function
@@ -233,7 +236,7 @@ for location in demand_centers:
             transport_excel_path,
             weather_excel_path)
         country_series = country_parameters.loc[hexagons.country[hexagon]]
-        lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage =\
+        lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, battery_capacity, h2_storage =\
             optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                 pv_profile.sel(hexagon = hexagon),
                                 wind_profile.time,
@@ -247,14 +250,18 @@ for location in demand_centers:
         solar_capacities[hexagon] = solar_capacity
         wind_capacities[hexagon] = wind_capacity
         electrolyzer_capacities[hexagon] = electrolyzer_capacity
+        battery_capacities[hexagon] = battery_capacity
         h2_storages[hexagon] = h2_storage
     trucking_time = time.process_time()-start
     
     hexagons[f'{location} trucking solar capacity'] = solar_capacities
     hexagons[f'{location} trucking wind capacity'] = wind_capacities
     hexagons[f'{location} trucking electrolyzer capacity'] = electrolyzer_capacities
+    hexagons[f'{location} trucking battery capacity'] = battery_capacities
     hexagons[f'{location} trucking H2 storage capacity'] = h2_storages
-    
+    # save trucking LCOH
+    hexagons[f'{location} trucking production cost'] = lcohs_trucking
+
     print(str(trucking_time) + ' s')
     
     # calculate cost of production for pipeline demand profile
@@ -262,6 +269,7 @@ for location in demand_centers:
     solar_capacities= np.zeros(len(pv_profile.hexagon))
     wind_capacities= np.zeros(len(pv_profile.hexagon))
     electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
+    battery_capacities = np.zeros(len(pv_profile.hexagon))
     h2_storages= np.zeros(len(pv_profile.hexagon))
     start = time.process_time()
     for hexagon in pv_profile.hexagon.data:
@@ -271,7 +279,7 @@ for location in demand_centers:
             transport_excel_path,
             weather_excel_path)
         country_series = country_parameters.loc[hexagons.country[hexagon]]
-        lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, h2_storage =\
+        lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, battery_capacity, h2_storage =\
             optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                 pv_profile.sel(hexagon = hexagon),
                                 wind_profile.time,
@@ -285,6 +293,7 @@ for location in demand_centers:
         solar_capacities[hexagon] = solar_capacity
         wind_capacities[hexagon] = wind_capacity
         electrolyzer_capacities[hexagon] = electrolyzer_capacity
+        battery_capacities[hexagon] = battery_capacity
         h2_storages[hexagon] = h2_storage
     pipeline_time = time.process_time()-start
     print(str(pipeline_time) + ' s')
@@ -292,10 +301,10 @@ for location in demand_centers:
     hexagons[f'{location} pipeline solar capacity'] = solar_capacities
     hexagons[f'{location} pipeline wind capacity'] = wind_capacities
     hexagons[f'{location} pipeline electrolyzer capacity'] = electrolyzer_capacities
+    hexagons[f'{location} pipeline battery capacity'] = battery_capacities
     hexagons[f'{location} pipeline H2 storage capacity'] = h2_storages
 
     # add optimal LCOH for each hexagon to hexagon file
-    hexagons[f'{location} trucking production cost'] = lcohs_trucking
     hexagons[f'{location} pipeline production cost'] = lcohs_pipeline
     
 hexagons.to_file('Resources/hex_lcoh.geojson', driver='GeoJSON', encoding='utf-8')
