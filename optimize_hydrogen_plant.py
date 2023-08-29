@@ -56,14 +56,14 @@ def demand_schedule(quantity, transport_state, transport_excel_path,
     truck_capacity = transport_parameters['Net capacity (kg H2)']
     start_date = weather_parameters['Start date']
     end_date = weather_parameters['End date (not inclusive)']
-    
+
     # schedule for trucking
     annual_deliveries = quantity/truck_capacity
     quantity_per_delivery = quantity/annual_deliveries
     index = pd.date_range(start_date, end_date, periods=annual_deliveries)
     trucking_demand_schedule = pd.DataFrame(quantity_per_delivery, index=index, columns = ['Demand'])
     trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
-    
+
     # schedule for pipeline
     index = pd.date_range(start_date, end_date, freq = 'H')
     pipeline_hourly_quantity = quantity/index.size
@@ -92,7 +92,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         interest rate and lifetime information.
     water_limit : float
         annual limit on water available for electrolysis in hexagon, in cubic meters. Default is None.
-    
+
     Returns
     -------
     lcoh : float
@@ -108,8 +108,8 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     h2_storage: float
         optimal hydrogen storage capacity in MWh.
 
-    '''    
-    
+    '''
+
     # if a water limit is given, check if hydrogen demand can be met
     if water_limit != None:
         # total hydrogen demand in kg
@@ -126,7 +126,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
             battery_capacity = np.nan
             h2_storage = np.nan
             return lcoh, wind_capacity, solar_capacity, electrolyzer_capacity, battery_capacity, h2_storage
-    
+
     # Set up network
     # Import a generic network
     n = pypsa.Network(override_component_attrs=aux.create_override_components())
@@ -136,7 +136,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
 
     # Import the design of the H2 plant into the network
     n.import_from_csv_folder("Parameters/Basic_H2_plant")
-    
+
     # Import demand profile
     # Note: All flows are in MW or MWh, conversions for hydrogen done using HHVs. Hydrogen HHV = 39.4 MWh/t
     # hydrogen_demand = pd.read_excel(demand_path,index_col = 0) # Excel file in kg hydrogen, convert to MWh
@@ -145,11 +145,11 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
           bus = 'Hydrogen',
           p_set = demand_profile['Demand']/1000*39.4,
           )
-    
+
     # Send the weather data to the model
     n.generators_t.p_max_pu['Wind'] = wind_potential
     n.generators_t.p_max_pu['Solar'] = pv_potential
-    
+
     # specify maximum capacity based on land use
     n.generators.loc['Wind','p_nom_max'] = wind_max_capacity
     n.generators.loc['Solar','p_nom_max'] = pv_max_capacity
@@ -161,7 +161,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
         * CRF(country_series['Solar interest rate'], country_series['Solar lifetime (years)'])
     for item in [n.links, n.stores,n.storage_units]:
         item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
-    
+
     # Solve the model
     solver = 'gurobi'
     n.lopf(solver_name=solver,
@@ -196,13 +196,13 @@ if __name__ == "__main__":
                                        index_col = 'Parameters'
                                        ).squeeze('columns')
     weather_filename = weather_parameters['Filename']
-    
+
     hexagons = gpd.read_file('Resources/hex_transport.geojson')
     # !!! change to name of cutout in weather
     cutout = atlite.Cutout('Cutouts/' + weather_filename +'.nc')
     layout = cutout.uniform_layout()
     # can add hydro layout here if desired using hydrogen potential map
-    
+
     pv_profile = cutout.pv(
         panel= 'CSi',
         orientation='latitude_optimal',
@@ -211,7 +211,7 @@ if __name__ == "__main__":
         per_unit = True
         )
     pv_profile = pv_profile.rename(dict(dim_0='hexagon'))
-    
+
     wind_profile = cutout.wind(
         # Changed turbine type - was Vestas_V80_2MW_gridstreamer in first run
         # Other option being explored: NREL_ReferenceTurbine_2020ATB_4MW, Enercon_E126_7500kW
@@ -221,7 +221,7 @@ if __name__ == "__main__":
         per_unit = True
         )
     wind_profile = wind_profile.rename(dict(dim_0='hexagon'))
-    
+
     for location in demand_centers:
         lcohs_trucking = np.zeros(len(pv_profile.hexagon))
         solar_capacities= np.zeros(len(pv_profile.hexagon))
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                                     hydrogen_demand_trucking,
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
-                                    country_series, 
+                                    country_series,
                                     water_limit = hexagons.loc[hexagon,'delta_water_m3']
                                     )
             lcohs_trucking[hexagon] = lcoh
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             battery_capacities[hexagon] = battery_capacity
             h2_storages[hexagon] = h2_storage
         trucking_time = time.process_time()-start
-        
+
         hexagons[f'{location} trucking solar capacity'] = solar_capacities
         hexagons[f'{location} trucking wind capacity'] = wind_capacities
         hexagons[f'{location} trucking electrolyzer capacity'] = electrolyzer_capacities
@@ -263,9 +263,9 @@ if __name__ == "__main__":
         hexagons[f'{location} trucking H2 storage capacity'] = h2_storages
         # save trucking LCOH
         hexagons[f'{location} trucking production cost'] = lcohs_trucking
-    
+
         print(str(trucking_time) + ' s')
-        
+
         # calculate cost of production for pipeline demand profile
         lcohs_pipeline = np.zeros(len(pv_profile.hexagon))
         solar_capacities= np.zeros(len(pv_profile.hexagon))
@@ -299,15 +299,15 @@ if __name__ == "__main__":
             h2_storages[hexagon] = h2_storage
         pipeline_time = time.process_time()-start
         print(str(pipeline_time) + ' s')
-        
+
         hexagons[f'{location} pipeline solar capacity'] = solar_capacities
         hexagons[f'{location} pipeline wind capacity'] = wind_capacities
         hexagons[f'{location} pipeline electrolyzer capacity'] = electrolyzer_capacities
         hexagons[f'{location} pipeline battery capacity'] = battery_capacities
         hexagons[f'{location} pipeline H2 storage capacity'] = h2_storages
-    
+
         # add optimal LCOH for each hexagon to hexagon file
         hexagons[f'{location} pipeline production cost'] = lcohs_pipeline
-        
+
     hexagons.to_file('Resources/hex_lcoh.geojson', driver='GeoJSON', encoding='utf-8')
-    
+

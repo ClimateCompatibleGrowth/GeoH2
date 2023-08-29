@@ -332,7 +332,7 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
                     + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest)[2]
     if final_state == 'NH3':
         dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest)[2]\
-                + trucking_costs('NH3',distance, quantity, interest,transport_excel_path) 
+                + trucking_costs('NH3',distance, quantity, interest,transport_excel_path)
         dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest)[2]\
                 + trucking_costs('LOHC',distance, quantity, interest,transport_excel_path)\
                     + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest)[2]\
