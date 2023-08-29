@@ -14,11 +14,7 @@ Create cutouts with `atlite <https://atlite.readthedocs.io/en/latest/>`_.
 For this rule to work you must have
 
 - installed the `Copernicus Climate Data Store <https://cds.climate.copernicus.eu>`_ ``cdsapi`` package  (`install with `pip``) and
-- registered and setup your CDS API key as described `on their website <https://cds.climate.copernicus.eu/api-how-to
-
-.. seealso::
-    For details on the weather data read the `atlite documentation <https://atlite.readthedocs.io/en/latest/>`_.
-    If you need help specifically for creating cutouts `the corresponding section in the atlite documentation <https://atlite.readthedocs.io/en/latest/examples/create_cutout.html>`_ should be helpful.
+- registered and setup your CDS API key as described on their website <https://cds.climate.copernicus.eu/api-how-to>
 
 """
 import logging
