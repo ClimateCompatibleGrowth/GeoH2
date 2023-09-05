@@ -139,13 +139,18 @@ This script will take a few seconds to run.
 
 Visualizes the spatial variation in different costs per kilogram of hydrogen.
 
-You can run this script by entering the following command in your terminal: 
+First, please run the `costs_by_component` script to get the cost for each type of equipment in each polygon. 
+You can run this script by entering the following command in your terminal:
+
+`.../GEOH2 % python costs_by_component.py`
+
+You can then run the visualisation script by entering the following command in your terminal: 
 
 `.../GEOH2 % python map_costs.py`
 
 This script will take a few seconds to run. 
 
-If you encounter the following error in visualisation, you may have a package conflict with geopandas, matplotlib and cartopy: 
+If you encounter the following error when running the `map_costs` script, you may have a package conflict with geopandas, matplotlib and cartopy: 
 `AttributeError: 'GeoAxesSubplot' object has no attribute '_autoscaleXon'.` 
 To get around this, try creating a new environment using the `environment-plot.yml` file using the same command presented above. This will create an environment named `geoh2-plot` which you can activate and use to run the visualisation script.
 

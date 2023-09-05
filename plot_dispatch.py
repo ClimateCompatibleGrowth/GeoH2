@@ -145,7 +145,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     return n
     
 
-def plot_dispatch(n, time):
+def plot_dispatch(n, time, demand, hex):
     fig, ax = plt.subplots(figsize=(6, 3))
     
     p_by_carrier = n.generators_t.p.loc[time]
@@ -181,9 +181,11 @@ def plot_dispatch(n, time):
     plt.legend(loc=(1.05, 0.2))
     ax.set_ylabel("MW")
     ax.set_ylim(-1500, 2000)
+    fig.savefig(f'Resources\\{demand} hexagon {hex} temporal - October.png', bbox_inches='tight')
+    plt.close()
     
 # %%
-time = slice('2022-07-21','2022-07-24')
+time = slice('2022-10-01','2022-10-15')
 
 
 transport_excel_path = "Parameters/transport_parameters.xlsx"
@@ -243,7 +245,7 @@ for location in demand_centers:
                                 country_series, 
                                 # water_limit = hexagons.loc[hexagon,'delta_water_m3']
                                 )
-        plot_dispatch(n, time)
+        plot_dispatch(n, time, location, hexagon)
         # pipeline demand
         n = optimize_hydrogen_plant(wind_profile.sel(hexagon = hexagon),
                                 pv_profile.sel(hexagon = hexagon),
@@ -254,5 +256,5 @@ for location in demand_centers:
                                 country_series,
                                 # water_limit = hexagons.loc[hexagon,'delta_water_m3'],
                                 )
-        plot_dispatch(n, time)
+        plot_dispatch(n, time, location, hexagon)
 

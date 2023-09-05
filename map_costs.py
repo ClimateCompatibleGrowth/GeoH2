@@ -13,7 +13,7 @@ import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import pandas as pd
 
-#hexagons = gpd.read_file('Resources/hex_total_cost.geojson')
+# hexagons = gpd.read_file('Resources/hex_total_cost.geojson')
 hexagons = gpd.read_file('Resources/hex_cost_components.geojson')
 demand_excel_path = 'Parameters/demand_parameters.xlsx'
 demand_parameters = pd.read_excel(demand_excel_path,index_col='Demand center')
@@ -172,8 +172,6 @@ for demand_center in demand_centers:
     ax.set_title(f'{demand_center} LCOH')
     fig.savefig(f'Resources\\{demand_center} LCOH.png', bbox_inches='tight')
     plt.close()
-
-    # Plot production costs by component
 
     # Solar capacity
 
@@ -520,7 +518,7 @@ for demand_center in demand_centers:
 
     hexagons.to_crs(crs.proj4_init).plot(
         ax=ax,
-        column=f'{demand_center} trucking battery storage capacity',
+        column=f'{demand_center} trucking battery capacity',
         legend=True,
         cmap='viridis_r',
         legend_kwds={'label': 'Size (MW)'},
@@ -529,8 +527,8 @@ for demand_center in demand_centers:
             "label": "Missing values",
         },
     )
-    ax.set_title(f'{demand_center} trucking battery storage capacity')
-    fig.savefig(f'Resources\\{demand_center} trucking battery storage capacity.png', bbox_inches='tight')
+    ax.set_title(f'{demand_center} trucking battery capacity')
+    fig.savefig(f'Resources\\{demand_center} trucking battery capacity.png', bbox_inches='tight')
     plt.close()
 
     fig = plt.figure(figsize=(10, 5))
@@ -540,7 +538,7 @@ for demand_center in demand_centers:
 
     hexagons.to_crs(crs.proj4_init).plot(
         ax=ax,
-        column=f'{demand_center} pipeline battery storage capacity',
+        column=f'{demand_center} pipeline battery capacity',
         legend=True,
         cmap='viridis_r',
         legend_kwds={'label': 'Size (MW)'},
@@ -549,8 +547,8 @@ for demand_center in demand_centers:
             "label": "Missing values",
         },
     )
-    ax.set_title(f'{demand_center} pipeline battery storage capacity')
-    fig.savefig(f'Resources\\{demand_center} pipeline battery storage capacity.png', bbox_inches='tight')
+    ax.set_title(f'{demand_center} pipeline battery capacity')
+    fig.savefig(f'Resources\\{demand_center} pipeline battery capacity.png', bbox_inches='tight')
     plt.close()
 
     # battery costs

@@ -246,7 +246,7 @@ if __name__ == "__main__":
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
                                     country_series,
-                                    water_limit = hexagons.loc[hexagon,'delta_water_m3']
+                                    # water_limit = hexagons.loc[hexagon,'delta_water_m3']
                                     )
             lcohs_trucking[hexagon] = lcoh
             solar_capacities[hexagon] = solar_capacity
@@ -289,7 +289,7 @@ if __name__ == "__main__":
                                     hexagons.loc[hexagon,'theo_turbines'],
                                     hexagons.loc[hexagon,'theo_pv'],
                                     country_series,
-                                    water_limit = hexagons.loc[hexagon,'delta_water_m3'],
+                                    # water_limit = hexagons.loc[hexagon,'delta_water_m3'],
                                     )
             lcohs_pipeline[hexagon]=lcoh
             solar_capacities[hexagon] = solar_capacity

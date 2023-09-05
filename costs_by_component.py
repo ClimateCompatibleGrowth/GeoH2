@@ -55,7 +55,7 @@ for demand_center in demand_centers:
     crf_battery = functions.CRF(interest_battery, lifetime_battery)
     capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
     hexagons[f'{demand_center} pipeline battery costs'] = \
-        hexagons[f'{demand_center} pipeline battery storage capacity'] * capital_cost_battery * crf_battery
+        hexagons[f'{demand_center} pipeline battery capacity'] * capital_cost_battery * crf_battery
     
     # Battery - trucking 
     interest_battery = country_parameters.loc[country, 'Plant interest rate']
@@ -63,7 +63,7 @@ for demand_center in demand_centers:
     crf_battery = functions.CRF(interest_battery, lifetime_battery)
     capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
     hexagons[f'{demand_center} trucking battery costs'] = \
-        hexagons[f'{demand_center} trucking battery storage capacity'] * capital_cost_battery * crf_battery
+        hexagons[f'{demand_center} trucking battery capacity'] * capital_cost_battery * crf_battery
 
     # Electrolyzer - pipeline
     interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
