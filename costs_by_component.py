@@ -56,6 +56,8 @@ for demand_center in demand_centers:
     capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
     hexagons[f'{demand_center} pipeline battery costs'] = \
         hexagons[f'{demand_center} pipeline battery capacity'] * capital_cost_battery * crf_battery
+    hexagons[f'{demand_center} LCOH - pipeline battery costs portion'] = \
+        hexagons[f'{demand_center} pipeline battery costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
     
     # Battery - trucking 
     interest_battery = country_parameters.loc[country, 'Plant interest rate']
@@ -64,6 +66,8 @@ for demand_center in demand_centers:
     capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
     hexagons[f'{demand_center} trucking battery costs'] = \
         hexagons[f'{demand_center} trucking battery capacity'] * capital_cost_battery * crf_battery
+    hexagons[f'{demand_center} LCOH - trucking battery costs portion'] = \
+        hexagons[f'{demand_center} trucking battery costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
     # Electrolyzer - pipeline
     interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
@@ -72,6 +76,8 @@ for demand_center in demand_centers:
     capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
     hexagons[f'{demand_center} pipeline electrolyzer costs'] = \
         hexagons[f'{demand_center} pipeline electrolyzer capacity'] * capital_cost_electrolyzer * crf_electrolyzer
+    hexagons[f'{demand_center} LCOH - pipeline electrolyzer portion'] = \
+        hexagons[f'{demand_center} pipeline electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
     # Electrolyzer - trucking
     interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
@@ -80,6 +86,8 @@ for demand_center in demand_centers:
     capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
     hexagons[f'{demand_center} trucking electrolyzer costs'] = \
         hexagons[f'{demand_center} trucking electrolyzer capacity'] * capital_cost_electrolyzer * crf_electrolyzer
+    hexagons[f'{demand_center} LCOH - trucking electrolyzer portion'] = \
+        hexagons[f'{demand_center} trucking electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
     # H2 Storage - pipeline
     interest_h2_storage = country_parameters.loc[country, 'Plant interest rate']
@@ -88,6 +96,8 @@ for demand_center in demand_centers:
     capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
     hexagons[f'{demand_center} pipeline H2 storage costs'] = \
         hexagons[f'{demand_center} pipeline H2 storage capacity'] * capital_cost_h2_storage * crf_h2_storage
+    hexagons[f'{demand_center} LCOH - pipeline H2 storage portion'] = \
+        hexagons[f'{demand_center} pipeline H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
     # H2 Storage - trucking
     interest_h2_storage = country_parameters.loc[country, 'Plant interest rate']
@@ -96,6 +106,8 @@ for demand_center in demand_centers:
     capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
     hexagons[f'{demand_center} trucking H2 storage costs'] = \
         hexagons[f'{demand_center} trucking H2 storage capacity'] * capital_cost_h2_storage * crf_h2_storage
+    hexagons[f'{demand_center} LCOH - trucking H2 storage portion'] = \
+        hexagons[f'{demand_center} trucking H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
     # Wind - pipeline
     interest_wind = country_parameters.loc[country, 'Wind interest rate']
@@ -104,6 +116,8 @@ for demand_center in demand_centers:
     capital_cost_wind = generators_parameters.loc['Wind', 'capital_cost']
     hexagons[f'{demand_center} pipeline wind costs'] = \
         hexagons[f'{demand_center} pipeline wind capacity'] * capital_cost_wind * crf_wind
+    hexagons[f'{demand_center} LCOH - pipeline wind portion'] = \
+        hexagons[f'{demand_center} pipeline wind costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
     
     # Wind - trucking
     interest_wind = country_parameters.loc[country, 'Wind interest rate']
@@ -112,6 +126,8 @@ for demand_center in demand_centers:
     capital_cost_wind = generators_parameters.loc['Wind', 'capital_cost']
     hexagons[f'{demand_center} trucking wind costs'] = \
         hexagons[f'{demand_center} trucking wind capacity'] * capital_cost_wind * crf_wind
+    hexagons[f'{demand_center} LCOH - trucking wind portion'] = \
+        hexagons[f'{demand_center} trucking wind costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
     # Solar - pipeline
     interest_solar = country_parameters.loc[country, 'Solar interest rate']
@@ -120,6 +136,8 @@ for demand_center in demand_centers:
     capital_cost_solar = generators_parameters.loc['Solar', 'capital_cost']
     hexagons[f'{demand_center} pipeline solar costs'] = \
         hexagons[f'{demand_center} pipeline solar capacity'] * capital_cost_solar * crf_solar
+    hexagons[f'{demand_center} LCOH - pipeline solar portion'] = \
+        hexagons[f'{demand_center} pipeline solar costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
     
     # Solar - trucking
     interest_solar = country_parameters.loc[country, 'Solar interest rate']
@@ -128,5 +146,8 @@ for demand_center in demand_centers:
     capital_cost_solar = generators_parameters.loc['Solar', 'capital_cost']
     hexagons[f'{demand_center} trucking solar costs'] = \
         hexagons[f'{demand_center} trucking solar capacity'] * capital_cost_solar * crf_solar
+    hexagons[f'{demand_center} LCOH - trucking solar portion'] = \
+        hexagons[f'{demand_center} trucking solar costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
 hexagons.to_file('Resources/hex_cost_components.geojson', driver='GeoJSON', encoding='utf-8')
+hexagons.to_csv('Resources/hex_cost_components.csv', encoding='latin-1')
