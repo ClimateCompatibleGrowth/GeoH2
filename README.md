@@ -6,8 +6,10 @@ GEOH2 calculates the locational cost of green hydrogen production, storage, tran
 The model outputs the levelized cost of hydrogen (LCOH) at the demand location including production, storage, transport, and conversion costs. 
 
 In the code provided, the specific use case of Namibia is investigated. As the code is written in a generalized way, it is possible to analyse all sorts of regions.
+___
 
 # Installation instructions
+
 ## Clone the repository
 First, clone the GEOH2 repository using `git`. 
 
@@ -23,6 +25,8 @@ The python package requirements are in the `environment.yaml` file. You can inst
 Then activate this new environment using
 
 `.../GEOH2 % conda activate geoh2`
+
+___
 
 # Preparing input data
 
@@ -67,8 +71,12 @@ Required input parameters include the spatial area of interest, total annual dem
 
 - **Conversion parameters**: `conversion_parameters.xlsx` includes parameters related to converting between states of hydrogen.
 
-# Assign countries
-Assigns country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country.
+___
+
+# Usage instructions
+
+## Assign countries
+Assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country.
 
 You can run this script by entering the following command in your terminal:
 
@@ -76,7 +84,7 @@ You can run this script by entering the following command in your terminal:
 
 This script should run in a few seconds or less.
 
-# Download weather data
+## Download weather data
 
 Download the weather data to calculate wind and solar potential for the geographical area and time period of interest using the `get_weather_data.py` script. Ensure that you have specified your weather parameters in `Parameters/weather_parameters.xlsx` 
   
@@ -90,9 +98,9 @@ Depending the length of your time period and size of your area as well as your i
 
 The downloaded data is saved in the Cutouts folder. Ensure that you have space on your computer to store the data, which can be several GB depending on the length of your time period and size of your area.
 
-# Optimize conversion and transportation
+## Optimize conversion and transportation
 
-Calculates the cost of the optimal hydrogen transportation and conversion strategy from each hexagon to each demand center using both pipelines and road transport using parameters from `technology_parameters.xlsx`, `demand_parameters.xlsx`, and `country_parameters.xlsx`.
+Calculate the cost of the optimal hydrogen transportation and conversion strategy from each hexagon to each demand center using both pipelines and road transport using parameters from `technology_parameters.xlsx`, `demand_parameters.xlsx`, and `country_parameters.xlsx`.
 
 You can run this script by entering the following command in your terminal: 
 
@@ -100,14 +108,14 @@ You can run this script by entering the following command in your terminal:
 
 This script should take a few minutes to run, depending on the size of the geographic area you are analyzing.
 
-# Optimize green hydrogen plant design
+## Optimize green hydrogen plant design
 
 Design green hydrogen plant to meet the hydrogen demand profile for each demand center for each transportation method to each demand center using the `optimize_hydrogen_plant.py` script. Ensure that you have specified your hydrogen plant parameters in the CSV files in the `Parameters/Basic_H2_plant` folder, your investment parameters in `Parameters/investment_parameters.xlsx`, and your demand centers in `Parameters/demand_parameters.xlsx`.
 
-## Installing a solver
+### Installing a solver
 To use this script, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation.
 
-## Running script
+### Running script
 
 You can run this script by entering the following command in your terminal:
 
@@ -115,7 +123,7 @@ You can run this script by entering the following command in your terminal:
 
 This script will take several minutes to several hours to run, depending on the size of the geographic area you are analyzing, the length of your weather data time period, and the number of demand centers.
 
-# Water costs
+## Water costs
 
 Calculate water costs from the ocean and freshwater bodies for hydrogen production in each hexagon using `Parameters/technology_parameters.xlsx` and `Parameters/country_parameters.xlsx`.
 
@@ -125,8 +133,8 @@ You can run this script by entering the following command in your terminal:
 
 This script will take a few seconds to run.
 
-# Total hydrogen costs
-Combines the results `optimize_transport_and_conversion.py`,`optimize_hydrogen_plant.py`, and `water_cost.py` to find the lowest-cost method of producing, transporting, and converting hydrogen for each demand center.
+## Total hydrogen costs
+Combine the results `optimize_transport_and_conversion.py`,`optimize_hydrogen_plant.py`, and `water_cost.py` to find the lowest-cost method of producing, transporting, and converting hydrogen for each demand center.
 
 You can run this script by entering the following command in your terminal:
 
@@ -134,11 +142,12 @@ You can run this script by entering the following command in your terminal:
 
 This script will take a few seconds to run.
 
-# Visualizing results
+## Visualizing results
 
-Visualizes the spatial variation in different costs per kilogram of hydrogen.
+Visualize the spatial variation in different costs per kilogram of hydrogen.
 
-First, please run the `costs_by_component` script to get the cost for each type of equipment in each polygon. 
+Run the `costs_by_component` script to get the cost for each type of equipment in each polygon. 
+
 You can run this script by entering the following command in your terminal:
 
 `.../GEOH2 % python costs_by_component.py`
@@ -149,9 +158,12 @@ You can then run the visualisation script by entering the following command in y
 
 This script will take a few seconds to run. 
 
-If you encounter the following error when running the `map_costs` script, you may have a package conflict with geopandas, matplotlib and cartopy: 
-`AttributeError: 'GeoAxesSubplot' object has no attribute '_autoscaleXon'.` 
-To get around this, try creating a new environment using the `environment-plot.yml` file using the same command presented above. This will create an environment named `geoh2-plot` which you can activate and use to run the visualisation script.
+Note that Windows users may encounter the following error when running the `map_costs` script:
+`AttributeError: 'GeoAxesSubplot' object has no attribute '_autoscaleXon'.`
+This is likely due to a package conflict with geopandas, matplotlib and cartopy. 
+If this error occurs, please create a separate environment including exclusively the dependencies needed in `map_costs` for this script. 
+
+___
 
 # Limitations
 
@@ -165,9 +177,11 @@ Transport costs are calculated from the center of the hexagon to the demand cent
 
 The availability of water for electrolysis is not limited in regions that could potentially face drought, and a single prices for freshwater and ocean water are used throughout the modeled area.
 
+___
+
 # Citation
 
-If you use GeoH2, please cite the following: 
+If you decide to use GeoH2, please kindly cite us using the following: 
 
 *Halloran, C., Leonard, A., Salmon, N., Müller, L., & Hirmer, S. (2024). 
 GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and transportation. 
@@ -185,3 +199,4 @@ doi = {10.5281/zenodo.10568855},
 note = {Model available on Github at https://github.com/ClimateCompatibleGrowth/GeoH2.}
 }
 ```
+
