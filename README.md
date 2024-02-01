@@ -5,8 +5,7 @@ GEOH2 calculates the locational cost of green hydrogen production, storage, tran
 
 The model outputs the levelized cost of hydrogen (LCOH) at the demand location including production, storage, transport, and conversion costs. 
 
-In the code provided, the specific use case of Kenya is investigated. As the code is written in a generalized way, it is possible to analyse all sorts of regions.
-
+In the code provided, the specific use case of Namibia is investigated. As the code is written in a generalized way, it is possible to analyse all sorts of regions.
 
 # Installation instructions
 ## Clone the repository
@@ -166,3 +165,23 @@ Transport costs are calculated from the center of the hexagon to the demand cent
 
 The availability of water for electrolysis is not limited in regions that could potentially face drought, and a single prices for freshwater and ocean water are used throughout the modeled area.
 
+# Citation
+
+If you use GeoH2, please cite the following: 
+
+*Halloran, C., Leonard, A., Salmon, N., Müller, L., & Hirmer, S. (2024). 
+GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and transportation. 
+Pre-print submitted to MethodsX: https://doi.org/10.5281/zenodo.10568855. 
+Model available on Github: https://github.com/ClimateCompatibleGrowth/GeoH2.*
+
+```commandline
+@techreport{halloran2024geoh2,
+author  = {Halloran, C and Leonard, A and Salmon, N and Müller, L and Hirmer, S},
+title   = {GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and
+transportation},
+type = {Pre-print submitted to MethodsX},
+year    = {2024},
+doi = {10.5281/zenodo.10568855},
+note = {Model available on Github at https://github.com/ClimateCompatibleGrowth/GeoH2.}
+}
+```
