@@ -8,6 +8,10 @@ The model outputs the levelized cost of hydrogen (LCOH) at the demand location i
 In the code provided, the specific use case of Namibia is investigated. 
 Parameter references for this case are attached.
 However, as the code is written in a generalized way, it is possible to analyse all sorts of regions.
+
+GeoH2 builds upon a preliminary code iteration produced by Leander Müller, available under a CC-BY-4.0 licence: [https://github.com/leandermue/GEOH2](https://github.com/leandermue/GEOH2).
+It also integrates code produced by Nick Salmon under an MIT licence: 
+[https://github.com/nsalmon11/LCOH_Optimisation](https://github.com/nsalmon11/LCOH_Optimisation)
 ___
 
 # Installation instructions
@@ -179,7 +183,8 @@ Transport costs are calculated from the center of the hexagon to the demand cent
 
 The availability of water for electrolysis is not limited in regions that could potentially face drought, and a single prices for freshwater and ocean water are used throughout the modeled area.
 
-___
+GeoH2 builds upon a preliminary code iteration produced by Leander Müller, available under a CC-BY-4.0 licence: [https://github.com/leandermue/GEOH2](https://github.com/leandermue/GEOH2).
+It also integrates code produced by Nick Salmon under an MIT licence: 
 
 # Citation
 
