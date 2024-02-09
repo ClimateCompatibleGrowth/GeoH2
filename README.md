@@ -182,9 +182,7 @@ Currently, only land transport is considered in the model. To calculate the cost
 Transport costs are calculated from the center of the hexagon to the demand center. When using large hexagon sizes, this assumption may over- or underestimate transportation costs significantly. Additionally, only path length is considered when calculating the cost of road and pipeline construction. Additional costs due to terrain are not considered.
 
 The availability of water for electrolysis is not limited in regions that could potentially face drought, and a single prices for freshwater and ocean water are used throughout the modeled area.
-
-GeoH2 builds upon a preliminary code iteration produced by Leander Müller, available under a CC-BY-4.0 licence: [https://github.com/leandermue/GEOH2](https://github.com/leandermue/GEOH2).
-It also integrates code produced by Nick Salmon under an MIT licence: 
+___
 
 # Citation
 
