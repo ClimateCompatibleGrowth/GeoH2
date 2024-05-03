@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this package, please cite the corresponding manuscript in MethodsX."
+authors:
+- family-names: "Halloran"
+  given-names: "Claire"
+- family-names: "Leonard"
+  given-names: "Alycia"
+- family-names: "Salmon"
+  given-names: "Nicholas"
+- family-names: "Müller"
+  given-names: "Leander"
+- family-names: "Hirmer"
+  given-names: "Stephanie"
+title: "GeoH2"
+url: "https://github.com/ClimateCompatibleGrowth/GeoH2"
+version: 1.0
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Halloran"
+    given-names: "Claire"
+  - family-names: "Leonard"
+    given-names: "Alycia"
+  - family-names: "Salmon"
+    given-names: "Nicholas"
+  - family-names: "Müller"
+    given-names: "Leander"
+  - family-names: "Hirmer"
+    given-names: "Stephanie"
+  title: "GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and transportation"
+  journal: "MethodsX"
+  year: 2024
+  doi: 10.1016/j.mex.2024.102660
+  month: 6
+  start: 102660 # First page number
+  volume: 12
