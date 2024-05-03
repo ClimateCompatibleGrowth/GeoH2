@@ -7,13 +7,13 @@ year: 2024
 doi: 10.1016/j.mex.2024.102660
 repository: https://github.com/ClimateCompatibleGrowth/GeoH2
 authors:
-  - family-names: Halloran
-    given-names: Claire
-  - family-names: Leonard
-    given-names: Alycia
-  - family-names: Salmon
-    given-names: Nicholas
-  - family-names: Müller
-    given-names: Leander
-  - family-names: Hirmer
-    given-names: Stephanie
+- family-names: Halloran
+  given-names: Claire
+- family-names: Leonard
+  given-names: Alycia
+- family-names: Salmon
+  given-names: Nicholas
+- family-names: Müller
+  given-names: Leander
+- family-names: Hirmer
+  given-names: Stephanie
