@@ -7,20 +7,22 @@ dependencies:
   - python
   - atlite=0.2.10
   - cartopy
-  - gdal=2
+  - gdal=3
   - geopy
   - geopandas
   - matplotlib
   - numpy
   - openpyxl
-  - pandas
+  - pandas = 1.5.3
   - pip
-  - pypsa
-  - rasterio!=1.2.10
-  - shapely=1.8.4
-  - xlsxwriter
+  - pypsa = 0.21.3
+  - shapely = 1.8.4
+  - xarray = 0.20.1
 
   - pip:
     - cdsapi
-    - geopy
-    - PySimpleGUI
+    - fiona
+    - pyproj
+    - rasterio!= 1.2.10
+    - pillow == 9.2.0
+
