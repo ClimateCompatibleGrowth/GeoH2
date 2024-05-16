@@ -24,13 +24,13 @@ First, clone the GEOH2 repository using `git`.
 `/some/path/without/spaces % git clone https://github.com/ClimateCompatibleGrowth/GeoH2.git`
 
 ## Install Python dependencies
-The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `conda` package and environment manager (available for installation [here](https://docs.conda.io/en/latest/miniconda.html)): 
+The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `mamba` package and environment manager (installation instructions [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)): 
 
-` .../GEOH2 % conda env create -f environment.yaml`
+` .../GEOH2 % mamba env create -f environment.yaml`
 
 Then activate this new environment using
 
-`.../GEOH2 % conda activate geoh2`
+`.../GEOH2 % mamba activate geoh2`
 
 ___
 
