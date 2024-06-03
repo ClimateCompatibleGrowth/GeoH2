@@ -190,18 +190,18 @@ If you decide to use GeoH2, please kindly cite us using the following:
 
 *Halloran, C., Leonard, A., Salmon, N., Müller, L., & Hirmer, S. (2024). 
 GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and transportation. 
-Pre-print submitted to MethodsX: https://doi.org/10.5281/zenodo.10568855. 
-Model available on Github: https://github.com/ClimateCompatibleGrowth/GeoH2.*
+MethodsX, 12, 102660. https://doi.org/10.1016/j.mex.2024.102660.*
 
 ```commandline
-@techreport{halloran2024geoh2,
-author  = {Halloran, C and Leonard, A and Salmon, N and Müller, L and Hirmer, S},
-title   = {GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and
-transportation},
-type = {Pre-print submitted to MethodsX},
-year    = {2024},
-doi = {10.5281/zenodo.10568855},
-note = {Model available on Github at https://github.com/ClimateCompatibleGrowth/GeoH2.}
+@article{Halloran_GeoH2_model_Geospatial_2024,
+author = {Halloran, Claire and Leonard, Alycia and Salmon, Nicholas and Müller, Leander and Hirmer, Stephanie},
+doi = {10.1016/j.mex.2024.102660},
+journal = {MethodsX},
+month = jun,
+pages = {102660},
+title = {{GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and transportation}},
+volume = {12},
+year = {2024}
 }
 ```
 ___
@@ -210,7 +210,7 @@ ___
 
 This repository includes sample parameters for a hydrogen production case in Namibia.
 References for these parameters are included in the tables below for reference.
-For the results of this case, please refer to the model pre-print: https://doi.org/10.5281/zenodo.10568855. 
+For the results of this case, please refer to the model MethodsX article: https://doi.org/10.1016/j.mex.2024.102660. 
 
 **Green hydrogen plant parameters:**
 
