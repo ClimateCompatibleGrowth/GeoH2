@@ -12,30 +12,30 @@ Add attributes to hex file for cost of each component
 
 import geopandas as gpd
 import pandas as pd
-import numpy as np
 from geopy.geocoders import Nominatim
 import functions
 
 # Load hexagons
-hexagons = gpd.read_file('Resources/hex_total_cost.geojson')
+hexagons = gpd.read_file(str(snakemake.input.hexagons))
 
 # Load necessary parameters
-demand_excel_path = 'Parameters/demand_parameters.xlsx'
+demand_excel_path = str(snakemake.input.demand_parameters)
 demand_parameters = pd.read_excel(demand_excel_path, index_col='Demand center')
-country_excel_path = 'Parameters/country_parameters.xlsx'
+country_excel_path = str(snakemake.input.country_parameters)
 country_parameters = pd.read_excel(country_excel_path, index_col='Country')
-stores_csv_path = 'Parameters/Basic_H2_plant/stores.csv' # H2 storage
+stores_csv_path = str(snakemake.input.stores_parameters) # H2 storage
 stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
-storage_csv_path = 'Parameters/Basic_H2_plant/storage_units.csv' # Battery
+storage_csv_path = str(snakemake.input.storage_parameters) # Battery
 storage_parameters = pd.read_csv(storage_csv_path, index_col='name')
-links_csv_path = 'Parameters/Basic_H2_plant/links.csv' # Electrolyzer
+links_csv_path = str(snakemake.input.links_parameters) # Electrolyzer
 links_parameters = pd.read_csv(links_csv_path, index_col='name')
-generators_csv_path = 'Parameters/Basic_H2_plant/generators.csv' # Solar and wind
+generators_csv_path = str(snakemake.input.generators_parameters) # Solar and generator
 generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
 
 # For each demand center, get costs for each component
 
 demand_centers = demand_parameters.index
+transport_methods = ['pipeline', 'trucking']
 for demand_center in demand_centers:
     # Get location of demand center
     lat = demand_parameters.loc[demand_center, 'Lat [deg]']
@@ -48,106 +48,47 @@ for demand_center in demand_centers:
     country = address.get('country', '')
     
     # Get CRF and then cost for each component using the data for the country you are looking at
+    for transport_method in transport_methods:
+        # Battery 
+        interest_battery = country_parameters.loc[country, 'Plant interest rate']
+        lifetime_battery = country_parameters.loc[country, 'Plant lifetime (years)']
+        crf_battery = functions.CRF(interest_battery, lifetime_battery)
+        capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
+        hexagons[f'{demand_center} {transport_method} battery costs'] = \
+            hexagons[f'{demand_center} {transport_method} battery capacity'] * capital_cost_battery * crf_battery
+        hexagons[f'{demand_center} LCOH - {transport_method} battery costs portion'] = \
+            hexagons[f'{demand_center} {transport_method} battery costs'] \
+                / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+        
+        # Electrolyzer
+        interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
+        lifetime_electrolyzer = country_parameters.loc[country, 'Plant lifetime (years)']
+        crf_electrolyzer = functions.CRF(interest_electrolyzer, lifetime_electrolyzer)
+        capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
+        hexagons[f'{demand_center} {transport_method} electrolyzer costs'] = \
+            hexagons[f'{demand_center} {transport_method} electrolyzer capacity'] * capital_cost_electrolyzer * crf_electrolyzer
+        hexagons[f'{demand_center} LCOH - {transport_method} electrolyzer portion'] = \
+            hexagons[f'{demand_center} {transport_method} electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+ 
+        # H2 Storage
+        interest_h2_storage = country_parameters.loc[country, 'Plant interest rate']
+        lifetime_h2_storage = country_parameters.loc[country, 'Plant lifetime (years)']
+        crf_h2_storage = functions.CRF(interest_h2_storage, lifetime_h2_storage)
+        capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
+        hexagons[f'{demand_center} {transport_method} H2 storage costs'] = \
+            hexagons[f'{demand_center} {transport_method} H2 storage capacity'] * capital_cost_h2_storage * crf_h2_storage
+        hexagons[f'{demand_center} LCOH - {transport_method} H2 storage portion'] = \
+            hexagons[f'{demand_center} {transport_method} H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+       
+        for generator in snakemake.config['generators']:
+            interest_generator = country_parameters.loc[country, f'{generator} interest rate']
+            lifetime_generator = country_parameters.loc[country, f'{generator} lifetime (years)']
+            crf_generator = functions.CRF(interest_generator, lifetime_generator)
+            capital_cost_generator = generators_parameters.loc[f'{generator}', 'capital_cost']
+            hexagons[f'{demand_center} {transport_method} {generator} costs'] = \
+                hexagons[f'{demand_center} {transport_method} {generator} capacity'] * capital_cost_generator * crf_generator
+            hexagons[f'{demand_center} LCOH - {transport_method} {generator} portion'] = \
+                hexagons[f'{demand_center} {transport_method} {generator} costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
-    # Battery - pipeline 
-    interest_battery = country_parameters.loc[country, 'Plant interest rate']
-    lifetime_battery = country_parameters.loc[country, 'Plant lifetime (years)']
-    crf_battery = functions.CRF(interest_battery, lifetime_battery)
-    capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
-    hexagons[f'{demand_center} pipeline battery costs'] = \
-        hexagons[f'{demand_center} pipeline battery capacity'] * capital_cost_battery * crf_battery
-    hexagons[f'{demand_center} LCOH - pipeline battery costs portion'] = \
-        hexagons[f'{demand_center} pipeline battery costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-    
-    # Battery - trucking 
-    interest_battery = country_parameters.loc[country, 'Plant interest rate']
-    lifetime_battery = country_parameters.loc[country, 'Plant lifetime (years)']
-    crf_battery = functions.CRF(interest_battery, lifetime_battery)
-    capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
-    hexagons[f'{demand_center} trucking battery costs'] = \
-        hexagons[f'{demand_center} trucking battery capacity'] * capital_cost_battery * crf_battery
-    hexagons[f'{demand_center} LCOH - trucking battery costs portion'] = \
-        hexagons[f'{demand_center} trucking battery costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-    # Electrolyzer - pipeline
-    interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
-    lifetime_electrolyzer = country_parameters.loc[country, 'Plant lifetime (years)']
-    crf_electrolyzer = functions.CRF(interest_electrolyzer, lifetime_electrolyzer)
-    capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
-    hexagons[f'{demand_center} pipeline electrolyzer costs'] = \
-        hexagons[f'{demand_center} pipeline electrolyzer capacity'] * capital_cost_electrolyzer * crf_electrolyzer
-    hexagons[f'{demand_center} LCOH - pipeline electrolyzer portion'] = \
-        hexagons[f'{demand_center} pipeline electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-    # Electrolyzer - trucking
-    interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
-    lifetime_electrolyzer = country_parameters.loc[country, 'Plant lifetime (years)']
-    crf_electrolyzer = functions.CRF(interest_electrolyzer, lifetime_electrolyzer)
-    capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
-    hexagons[f'{demand_center} trucking electrolyzer costs'] = \
-        hexagons[f'{demand_center} trucking electrolyzer capacity'] * capital_cost_electrolyzer * crf_electrolyzer
-    hexagons[f'{demand_center} LCOH - trucking electrolyzer portion'] = \
-        hexagons[f'{demand_center} trucking electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-    # H2 Storage - pipeline
-    interest_h2_storage = country_parameters.loc[country, 'Plant interest rate']
-    lifetime_h2_storage = country_parameters.loc[country, 'Plant lifetime (years)']
-    crf_h2_storage = functions.CRF(interest_h2_storage, lifetime_h2_storage)
-    capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
-    hexagons[f'{demand_center} pipeline H2 storage costs'] = \
-        hexagons[f'{demand_center} pipeline H2 storage capacity'] * capital_cost_h2_storage * crf_h2_storage
-    hexagons[f'{demand_center} LCOH - pipeline H2 storage portion'] = \
-        hexagons[f'{demand_center} pipeline H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-    # H2 Storage - trucking
-    interest_h2_storage = country_parameters.loc[country, 'Plant interest rate']
-    lifetime_h2_storage = country_parameters.loc[country, 'Plant lifetime (years)']
-    crf_h2_storage = functions.CRF(interest_h2_storage, lifetime_h2_storage)
-    capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
-    hexagons[f'{demand_center} trucking H2 storage costs'] = \
-        hexagons[f'{demand_center} trucking H2 storage capacity'] * capital_cost_h2_storage * crf_h2_storage
-    hexagons[f'{demand_center} LCOH - trucking H2 storage portion'] = \
-        hexagons[f'{demand_center} trucking H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-    # Wind - pipeline
-    interest_wind = country_parameters.loc[country, 'Wind interest rate']
-    lifetime_wind = country_parameters.loc[country, 'Wind lifetime (years)']
-    crf_wind = functions.CRF(interest_wind, lifetime_wind)
-    capital_cost_wind = generators_parameters.loc['Wind', 'capital_cost']
-    hexagons[f'{demand_center} pipeline wind costs'] = \
-        hexagons[f'{demand_center} pipeline wind capacity'] * capital_cost_wind * crf_wind
-    hexagons[f'{demand_center} LCOH - pipeline wind portion'] = \
-        hexagons[f'{demand_center} pipeline wind costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-    
-    # Wind - trucking
-    interest_wind = country_parameters.loc[country, 'Wind interest rate']
-    lifetime_wind = country_parameters.loc[country, 'Wind lifetime (years)']
-    crf_wind = functions.CRF(interest_wind, lifetime_wind)
-    capital_cost_wind = generators_parameters.loc['Wind', 'capital_cost']
-    hexagons[f'{demand_center} trucking wind costs'] = \
-        hexagons[f'{demand_center} trucking wind capacity'] * capital_cost_wind * crf_wind
-    hexagons[f'{demand_center} LCOH - trucking wind portion'] = \
-        hexagons[f'{demand_center} trucking wind costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-    # Solar - pipeline
-    interest_solar = country_parameters.loc[country, 'Solar interest rate']
-    lifetime_solar = country_parameters.loc[country, 'Solar lifetime (years)']
-    crf_solar = functions.CRF(interest_solar, lifetime_solar)
-    capital_cost_solar = generators_parameters.loc['Solar', 'capital_cost']
-    hexagons[f'{demand_center} pipeline solar costs'] = \
-        hexagons[f'{demand_center} pipeline solar capacity'] * capital_cost_solar * crf_solar
-    hexagons[f'{demand_center} LCOH - pipeline solar portion'] = \
-        hexagons[f'{demand_center} pipeline solar costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-    
-    # Solar - trucking
-    interest_solar = country_parameters.loc[country, 'Solar interest rate']
-    lifetime_solar = country_parameters.loc[country, 'Solar lifetime (years)']
-    crf_solar = functions.CRF(interest_solar, lifetime_solar)
-    capital_cost_solar = generators_parameters.loc['Solar', 'capital_cost']
-    hexagons[f'{demand_center} trucking solar costs'] = \
-        hexagons[f'{demand_center} trucking solar capacity'] * capital_cost_solar * crf_solar
-    hexagons[f'{demand_center} LCOH - trucking solar portion'] = \
-        hexagons[f'{demand_center} trucking solar costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-
-hexagons.to_file('Resources/hex_cost_components.geojson', driver='GeoJSON', encoding='utf-8')
-hexagons.to_csv('Resources/hex_cost_components.csv', encoding='latin-1')
+hexagons.to_file(str(snakemake.output[0]), driver='GeoJSON', encoding='utf-8')
+hexagons.to_csv(str(snakemake.output[1]), encoding='latin-1')

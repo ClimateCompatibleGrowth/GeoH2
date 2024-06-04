@@ -19,42 +19,36 @@ For this rule to work you must have
 """
 import logging
 import atlite
-# import geopandas as gpd
-import pandas as pd
-# from _helpers import configure_logging
+import geopandas as gpd
 import os
+if __name__ == "__main__":
+    
+    logging.basicConfig(level=logging.INFO)
+    
+    # calculate min and max coordinates from hexagons
+    hexagons = gpd.read_file(str(snakemake.input.hexagons))
+    
+    hexagon_bounds = hexagons.geometry.bounds
+    min_lon, min_lat = hexagon_bounds[['minx','miny']].min()
+    max_lon, max_lat = hexagon_bounds[['maxx','maxy']].max()
 
-logging.basicConfig(level=logging.INFO)
-
-weather_excel_path = "Parameters/weather_parameters.xlsx"
-
-weather_parameters = pd.read_excel(weather_excel_path,
-                                   index_col = 'Parameters'
-                                   ).squeeze('columns')
-
-start_date = weather_parameters['Start date']
-end_date = weather_parameters['End date (not inclusive)']
-min_lon = weather_parameters['Minimum longitude (deg)']
-max_lon = weather_parameters['Maximum longitude (deg)']
-min_lat = weather_parameters['Minimum latitude (deg)']
-max_lat = weather_parameters['Maximum latitude (deg)']
-filename = weather_parameters['Filename']
-
-
-snapshots = slice(start_date, end_date) # date range to import, end not inclusive
-
-# Create folders for final cutouts and temporary files
-if not os.path.exists('Cutouts'):
-    os.makedirs('Cutouts')
-if not os.path.exists('temp'):
-    os.makedirs('temp')
-
-cutout = atlite.Cutout(
-    path="Cutouts/" + filename + ".nc",
-    module="era5",
-    x=slice(min_lon, max_lon),
-    y=slice(min_lat, max_lat),
-    time=snapshots,
-)
-
-cutout.prepare(tmpdir="temp") # TEMPDIR DEFINITION IS NEW TO FIX ERROR
+    weather_year = snakemake.wildcards.weather_year
+    end_weather_year = int(snakemake.wildcards.weather_year)+1
+    start_date = f'{weather_year}-01-01'
+    end_date = f'{end_weather_year}-01-01'
+    
+    # Create folders for final cutouts and temporary files
+    if not os.path.exists('Cutouts'):
+        os.makedirs('Cutouts')
+    if not os.path.exists('temp'):
+        os.makedirs('temp')
+    
+    cutout = atlite.Cutout(
+        path=str(snakemake.output),
+        module="era5",
+        x=slice(min_lon, max_lon),
+        y=slice(min_lat, max_lat),
+        time=slice(start_date, end_date),
+    )
+    
+    cutout.prepare(tmpdir="temp") # TEMPDIR DEFINITION IS NEW TO FIX ERROR

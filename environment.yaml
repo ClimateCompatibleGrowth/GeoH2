@@ -2,6 +2,7 @@ name: geoh2
 channels:
   - defaults
   - conda-forge
+  - bioforge
 
 dependencies:
   - python
@@ -17,6 +18,7 @@ dependencies:
   - pip
   - pypsa = 0.21.3
   - shapely = 1.8.4
+  - snakemake
   - xarray = 0.20.1
 
   - pip:

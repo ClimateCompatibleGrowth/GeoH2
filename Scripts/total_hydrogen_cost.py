@@ -16,8 +16,8 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-hexagons = gpd.read_file('Resources/hex_water.geojson')
-demand_excel_path = 'Parameters/demand_parameters.xlsx'
+hexagons = gpd.read_file(str(snakemake.input.hexagons))
+demand_excel_path = str(snakemake.input.demand_parameters)
 demand_parameters = pd.read_excel(demand_excel_path,
                                   index_col='Demand center',
                                   )
@@ -40,4 +40,4 @@ for demand_center in demand_centers:
              hexagons.loc[hexagon,f'{demand_center} pipeline total cost']
              ])
         
-hexagons.to_file('Resources/hex_total_cost.geojson', driver='GeoJSON', encoding='utf-8')
+hexagons.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8')
