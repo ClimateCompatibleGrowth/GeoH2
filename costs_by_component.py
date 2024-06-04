@@ -13,7 +13,7 @@ Add attributes to hex file for cost of each component
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Photon
 import functions
 
 # Load hexagons
@@ -42,10 +42,9 @@ for demand_center in demand_centers:
     lon = demand_parameters.loc[demand_center, 'Lon [deg]']
     coordinates = str(lat) + ", " + str(lon)
     # Get country where the demand center is
-    geolocator = Nominatim(user_agent="MyApp")
+    geolocator = Photon(user_agent="MyApp")
     location = geolocator.reverse(coordinates)
-    address = location.raw['address']
-    country = address.get('country', '')
+    country = location.raw['properties']['country']
     
     # Get CRF and then cost for each component using the data for the country you are looking at
 
