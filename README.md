@@ -86,7 +86,11 @@ High-level workflow settings are controlled in the config file `config.yaml`.
 
 Multiple wildcard values can be specified in the `scenario` section of the config file. The total hydrogen cost for all scenarios can be run by entering the following rule into the shell:
 ```
-snakemake -j [NUMBER OF THREADS] all_countries_and_years_total_hydrogen_costs
+snakemake -j [NUMBER OF THREADS] calculate_all_countries_and_years_total_hydrogen_costs
+```
+Similarly, you can map hydrogen costs for all scenarios with the following rule:
+```
+snakemake -j [NUMBER OF THREADS] map_all_countries_and_years
 ```
 Renewable generators considered for hydrogen plant construction are included in the `generators` section.
 
@@ -169,7 +173,7 @@ snakemake -j [NUMBER OF THREADS] Results/hex_cost_components_{country}_{weather_
 ```
 This rule will take a few seconds to run.
 
-## `map_costs` rule
+### `map_costs` rule
 
 Visualize the spatial variation in different costs per kilogram of hydrogen.
 
