@@ -12,9 +12,7 @@ hydrogen plant capacity.
 import atlite
 import geopandas as gpd
 import pypsa
-import matplotlib.pyplot as plt
 import pandas as pd
-import cartopy.crs as ccrs
 import p_H2_aux as aux
 from functions import CRF
 import numpy as np
@@ -23,7 +21,7 @@ import time
 
 logging.basicConfig(level=logging.ERROR)
 
-def demand_schedule(quantity, transport_state, transport_excel_path):
+def demand_schedule(quantity, start_date, end_date, transport_state, transport_excel_path):
     '''
     calculates hourly hydrogen demand for truck shipment and pipeline transport.
 
@@ -31,6 +29,10 @@ def demand_schedule(quantity, transport_state, transport_excel_path):
     ----------
     quantity : float
         annual amount of hydrogen to transport in kilograms.
+    start_date: string
+        start date for demand schedule in the format YYYY-MM-DD.
+    end_date: string
+        end date for demand schedule in the format YYYY-MM-DD.
     transport_state : string
         state hydrogen is transported in, one of '500 bar', 'LH2', 'LOHC', or 'NH3'.
     transport_excel_path : string
@@ -49,10 +51,7 @@ def demand_schedule(quantity, transport_state, transport_excel_path):
                                          ).squeeze('columns')
 
     truck_capacity = transport_parameters['Net capacity (kg H2)']
-    weather_year = snakemake.wildcards.weather_year
-    end_weather_year = int(snakemake.wildcards.weather_year)+1
-    start_date = f'{weather_year}-01-01'
-    end_date = f'{end_weather_year}-01-01'
+
     # schedule for trucking
     annual_deliveries = quantity/truck_capacity
     quantity_per_delivery = quantity/annual_deliveries
@@ -135,7 +134,6 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
 
     # Import demand profile
     # Note: All flows are in MW or MWh, conversions for hydrogen done using HHVs. Hydrogen HHV = 39.4 MWh/t
-    # hydrogen_demand = pd.read_excel(demand_path,index_col = 0) # Excel file in kg hydrogen, convert to MWh
     n.add('Load',
           'Hydrogen demand',
           bus = 'Hydrogen',
@@ -187,12 +185,18 @@ if __name__ == "__main__":
                                       index_col='Demand center',
                                       ).squeeze("columns")
     demand_centers = demand_parameters.index
+
+    weather_year = snakemake.wildcards.weather_year
+    end_weather_year = int(snakemake.wildcards.weather_year)+1
+    start_date = f'{weather_year}-01-01'
+    end_date = f'{end_weather_year}-01-01'
+    
     hexagons = gpd.read_file(str(snakemake.input.hexagons))
-    # !!! change to name of cutout in weather
+
     cutout = atlite.Cutout(str(snakemake.input.cutout))
     layout = cutout.uniform_layout()
-    # can add hydro layout here if desired using hydrogen potential map
-    # TODO: add generator options to config file
+
+    # can add hydro and other generators here
     pv_profile = cutout.pv(
         panel= 'CSi',
         orientation='latitude_optimal',
@@ -201,10 +205,8 @@ if __name__ == "__main__":
         per_unit = True
         )
     pv_profile = pv_profile.rename(dict(dim_0='hexagon'))
-
+    
     wind_profile = cutout.wind(
-        # Changed turbine type - was Vestas_V80_2MW_gridstreamer in first run
-        # Other option being explored: NREL_ReferenceTurbine_2020ATB_4MW, Enercon_E126_7500kW
         turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
         layout = layout,
         shapes = hexagons,
