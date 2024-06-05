@@ -80,14 +80,15 @@ for demand_center in demand_centers:
             hexagons[f'{demand_center} {transport_method} H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
        
         for generator in snakemake.config['generators']:
+            generator_lower = generator.lower()
             interest_generator = country_parameters.loc[country, f'{generator} interest rate']
             lifetime_generator = country_parameters.loc[country, f'{generator} lifetime (years)']
             crf_generator = functions.CRF(interest_generator, lifetime_generator)
             capital_cost_generator = generators_parameters.loc[f'{generator}', 'capital_cost']
-            hexagons[f'{demand_center} {transport_method} {generator} costs'] = \
-                hexagons[f'{demand_center} {transport_method} {generator} capacity'] * capital_cost_generator * crf_generator
-            hexagons[f'{demand_center} LCOH - {transport_method} {generator} portion'] = \
-                hexagons[f'{demand_center} {transport_method} {generator} costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+            hexagons[f'{demand_center} {transport_method} {generator_lower} costs'] = \
+                hexagons[f'{demand_center} {transport_method} {generator_lower} capacity'] * capital_cost_generator * crf_generator
+            hexagons[f'{demand_center} LCOH - {transport_method} {generator_lower} portion'] = \
+                hexagons[f'{demand_center} {transport_method} {generator_lower} costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
 hexagons.to_file(str(snakemake.output[0]), driver='GeoJSON', encoding='utf-8')
 hexagons.to_csv(str(snakemake.output[1]), encoding='latin-1')
