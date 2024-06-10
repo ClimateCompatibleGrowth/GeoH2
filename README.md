@@ -1,5 +1,4 @@
 # GEOH2
-Geospatial analysis of hydrogen production costs
 
 GEOH2 calculates the locational cost of green hydrogen production, storage, transport, and conversion to meet demand in a specified location. These costs can be compared to current or projected prices for energy and chemical feedstocks in the region to assess the competitiveness of green hydrogen. Currently, different end-uses, such as fertilizer production, export shipping, and steel production, are not modeled.
 
@@ -24,11 +23,12 @@ First, clone the GEOH2 repository using `git`.
 `/some/path/without/spaces % git clone https://github.com/ClimateCompatibleGrowth/GeoH2.git`
 
 ## Install Python dependencies
-The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `mamba` package and environment manager (installation instructions [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)): 
+The python package requirements are in the `environment.yaml` file. 
+You can install these requirements in a new environment using `mamba` package and environment manager (installation instructions [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)): 
 
 ` .../GEOH2 % mamba env create -f environment.yaml`
 
-Then activate this new environment using
+Then, activate this new environment:
 
 `.../GEOH2 % mamba activate geoh2`
 
@@ -37,33 +37,51 @@ ___
 # Preparing input data
 
 ## Hexagons 
-To analyse a different area of interest, the input hexagon file needs to be changed, but needs to follow the logic of the one provided. An explanation of how to create a H3-Hexagon file can be found in the following repo:
 
-https://github.com/carderne/ccg-spider
+**Spatial data preparation scripts for GeoH2 are available in the [GeoH2-data-prep](https://github.com/ClimateCompatibleGrowth/GeoH2-data-prep) package.**
 
+An input hexagon file needs to be created for each area of interest to be studied.
+The hexagon file must follow the logic of the example provided.
+Scripts to facilitate data preparation in this format are made available in the [GeoH2-data-prep](https://github.com/ClimateCompatibleGrowth/GeoH2-data-prep) package.
+These scripts interface with the the Global Land Availability of Energy Systems ([GLAES](https://github.com/FZJ-IEK3-VSA/glaes/tree/master/)) and Spatially Integrated Development of Energy and Resources ([SPIDER](https://github.com/carderne/ccg-spider/tree/main)) packages.
+Please refer to the ReadMe of GeoH2-data-prep for detailed instructions.
+You are also welcome to prepare your hexagon file with different tools if preferred, so long as it follows the logic of the example provided.
 The hexagon file needs to filled with the following attributes:
 
-  - waterbody_dist: Distance to selected waterbodies in area of interest
+  - waterbody_dist: Distance to selected water bodies in area of interest
   - waterway_dist: Distance to selected waterways in area of interest
   - ocean_dist: Distance to ocean coastline
   - grid_dist: Distance to transmission network
   - road_dist: Distance to road network
-  - theo_pv: Theoretical potential of standarized PV plants       --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
-  - theo_wind: Theoretical potential of standarized wind turbines     --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
+  - theo_pv: Theoretical potential of standardized PV plants   
+  - theo_wind: Theoretical potential of standardized wind turbines 
   
-Once you have created a hexagon file with these features, save it in the `Data` folder.
+Once you have created a hexagon file with these features (using [GeoH2-data-prep](https://github.com/ClimateCompatibleGrowth/GeoH2-data-prep) or otherwise), save it in the `Data` folder.
   
 ## Input parameter Excel files
 
-Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the Parameters folder.
+GEOH2 also requires a number of technoeconomic parameters.
+These must be saved in Excel workbooks and CSV files in the `Parameters` folder. 
+These values can be either current values or projected values for a single snapshot in time. 
+The parameter files are as follows:
 
-- **Demand parameters:** `demand_parameters.xlsx` includes a list of demand centers. For each demand center, its lat-lon location, annual demand, and hydrogen state for that demand must be specified. If multiple forms are hydrogen are demanded in one location, differentiate the demand center name (e.g. Nairobi LH2 and Nairobi NH3) to avoid problems from duplicate demand center names.
+- **Demand parameters:** `demand_parameters.xlsx` includes a list of demand centers. 
+For each demand center, its lat-lon location, annual demand, and hydrogen state for that demand must be specified. 
+If multiple forms are hydrogen are demanded in one location, differentiate the demand center name (e.g. Nairobi LH2 and Nairobi NH3) to avoid problems from duplicate demand center names.
+
 
 - **Country parameters:** `country_parameters.xlsx` includes country- and technology-specific interest rates, heat and electricity costs, and asset lifetimes.
     - Interest rates should be expressed as a decimal, e.g. 5% as 0.05.
     - Asset lifetimes should be in years.
     
-- **Basic H2 plant** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
+- **Basic H2 plant:** Contains several csv files containing the global parameters for optimizing the plant design. 
+  All power units are MW and all energy units are MWh.
+  For more information on these sheets, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
+  Parameters include:
+    - `generators.csv`: capital costs for wind turbines and solar PV. 
+    - `link.csv`: capital costs for electrolysis and hydrogen compression.
+    - `storage_units.csv`: capital costs for batteries.
+    - `stores.csv`: capital costs for compressed H2 storage.
 
 - **Weather parameters:** `weather_parameters.xlsx` includes the locational and time range to download historical weather data from the ERA5 reanalysis dataset to calculate wind and solar generation potential. At least a year is recommended for the weather time range to capture seasonal variation in renewable potential, but longer time ranges will increase the computation time for optimizing the design of a hydrogen plant.
     - Note: The end date is not inclusive, so if you want to download weather data for all of 2022, you should input 2023/01/01 as the end date. 
