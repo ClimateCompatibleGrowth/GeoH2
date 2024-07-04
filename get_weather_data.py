@@ -18,6 +18,7 @@ For this rule to work you must have
 
 """
 import logging
+from osgeo import gdal
 import atlite
 # import geopandas as gpd
 import pandas as pd

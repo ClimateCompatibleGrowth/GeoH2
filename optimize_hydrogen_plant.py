@@ -9,6 +9,7 @@ hydrogen plant capacity.
 
 """
 
+from osgeo import gdal
 import atlite
 import geopandas as gpd
 import pypsa
@@ -60,9 +61,9 @@ def demand_schedule(quantity, transport_state, transport_excel_path,
     # schedule for trucking
     annual_deliveries = quantity/truck_capacity
     quantity_per_delivery = quantity/annual_deliveries
-    index = pd.date_range(start_date, end_date, periods=annual_deliveries)
+    index = pd.date_range(start_date, end_date, periods=int(annual_deliveries))
     trucking_demand_schedule = pd.DataFrame(quantity_per_delivery, index=index, columns = ['Demand'])
-    trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
+    trucking_hourly_demand_schedule = trucking_demand_schedule.resample('h').sum().fillna(0.)
 
     # schedule for pipeline
     index = pd.date_range(start_date, end_date, freq = 'H')
@@ -171,7 +172,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
            )
     # Output results
 
-    lcoh = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
+    lcoh = n.objective/(n.loads_t.p_set.sum().iloc[0]/39.4*1000) # convert back to kg H2
     wind_capacity = n.generators.p_nom_opt['Wind']
     solar_capacity = n.generators.p_nom_opt['Solar']
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
