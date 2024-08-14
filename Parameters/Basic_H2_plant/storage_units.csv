@@ -1,0 +1,2 @@
+﻿name,bus,p_nom_extendable,carrier,capital_cost,max_hours
+Battery,Power,TRUE,AC,95000,1

@@ -1,0 +1,2 @@
+name,bus,carrier,e_nom,e_nom_extendable,e_nom_max,e_cyclic,e_initial,capital_cost
+Compressed H2 Store,Hydrogen Storage,H2,0,TRUE,1.00E+07,TRUE,0,2.17E+04
