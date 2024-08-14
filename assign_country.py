@@ -14,8 +14,8 @@ Just add to optimize_hydrogen_plant.py?
 import geopandas as gpd
 
 hexagons = gpd.read_file('Data/hex_final.geojson')
+hexagons.to_crs(epsg=4326, inplace=True)
 world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres')) # may need to switch to higher res
-hexagons.to_crs(world.crs, inplace=True)
 countries = world.drop(columns=['pop_est', 'continent', 'iso_a3', 'gdp_md_est'])
 countries = countries.rename(columns={'name':'country'})
 hexagons_with_country = gpd.sjoin(hexagons, countries, op='intersects') # changed from "within"
