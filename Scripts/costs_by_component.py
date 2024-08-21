@@ -43,7 +43,7 @@ for demand_center in demand_centers:
     coordinates = str(lat) + ", " + str(lon)
     # Get country where the demand center is
     geolocator = Photon(user_agent="MyApp")
-    location = geolocator.reverse(coordinates)
+    location = geolocator.reverse(coordinates, language="en")
     country = location.raw['properties']['country']
     
     # Get CRF and then cost for each component using the data for the country you are looking at
