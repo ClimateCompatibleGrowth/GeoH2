@@ -1,7 +1,11 @@
-
+__pycache__
 Cutouts/
+Data/
 Resources/
+Results/
 Plots/
 **/.DS_Store
 .DS_Store
 Temp/
+.snakemake/
+gurobi.log

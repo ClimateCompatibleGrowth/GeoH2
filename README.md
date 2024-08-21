@@ -17,11 +17,9 @@ ___
 # Installation instructions
 
 ## Clone the repository
-First, clone the GEOH2 repository using `git`. 
+First, clone the GeoH2 repository using `git`. 
 
-`/some/other/path % cd /some/path/without/spaces`
-
-`/some/path/without/spaces % git clone https://github.com/ClimateCompatibleGrowth/GeoH2.git`
+`... % git clone https://github.com/ClimateCompatibleGrowth/GeoH2.git`
 
 ## Install Python dependencies
 The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `mamba` package and environment manager (installation instructions [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)): 
@@ -65,10 +63,6 @@ Required input parameters include the spatial area of interest, total annual dem
     
 - **Basic H2 plant** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
 
-- **Weather parameters:** `weather_parameters.xlsx` includes the locational and time range to download historical weather data from the ERA5 reanalysis dataset to calculate wind and solar generation potential. At least a year is recommended for the weather time range to capture seasonal variation in renewable potential, but longer time ranges will increase the computation time for optimizing the design of a hydrogen plant.
-    - Note: The end date is not inclusive, so if you want to download weather data for all of 2022, you should input 2023/01/01 as the end date. 
-    - Note: The dates need to be presented in the following format: YYYY/MM/DD. If this is auto-corrected to a different format by excel, be sure to manually re-adjust it to be this format, or the download script will not recognise the date properly.
-
 - **Technology parameters:** ` technology_parameters.xlsx` includes water parameters, road infrastructure parameters, and whether road and hydrogen pipeline construction is allowed.
 
 - **Pipeline parameters:** `pipeline_parameters.xlsx` includes the price, capacity, and lifetime data for different sizes of hydrogen pipeline.
@@ -79,96 +73,115 @@ Required input parameters include the spatial area of interest, total annual dem
 
 ___
 
-# Usage instructions
+# Snakemake
 
-## Assign countries
+This repository uses [Snakemake](https://snakemake.readthedocs.io/en/stable/) to automate its workflow (for a gentle introduction to Snakemake, see [Getting Started with Snakemake](https://carpentries-incubator.github.io/workflows-snakemake/) on The Carpentries Incubator).
+
+## Wildcards
+Wildcards specify the data used in the workflow. This workflow uses two wildcards: `country` (an ISO standard 2 letter abbreviation) and `weather_year` (a 4-digit year between 1940 and 2023 included in the ERA5 dataset).
+
+## Config file
+
+High-level workflow settings are controlled in the config file `config.yaml`. 
+
+Multiple wildcard values can be specified in the `scenario` section of the config file. The total hydrogen cost for all scenarios can be run by entering the following rule into the shell:
+```
+snakemake -j [NUMBER OF THREADS] calculate_all_countries_and_years_total_hydrogen_costs
+```
+Similarly, you can map hydrogen costs for all scenarios with the following rule:
+```
+snakemake -j [NUMBER OF THREADS] map_all_countries_and_years
+```
+Renewable generators considered for hydrogen plant construction are included in the `generators` section.
+
+In the `transport` section, `pipeline_construction` and `road_construction` can be switched on and off.
+
+## Rules
+
+Rules are run in Snakemake by entering their output in the shell. Snakemake will run all necessary rules and their corresponding scripts to create an output. While we discuss all rules here for completeness, **you do not need to enter each rule one-by-one and can simply enter the output you're interested in.** Rules are defined in the `Snakefile`.
+
+### `assign_country` rule
 Assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country.
 
-You can run this script by entering the following command in your terminal:
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Data/hexagons_with_country_{country}.geojson
+```
+This rule should run in a few seconds or less.
 
-`.../GEOH2 % python assign_country.py`
+### `get_weather_data` rule
 
-This script should run in a few seconds or less.
+This rule downloads the relevant historical weather data from the ERA-5 reanalysis dataset using [Atlite](https://atlite.readthedocs.io/en/latest/) to create a cutout. For this process to work, you need to register and set up your CDS API key as described on the [Climate Data Store website](https://cds.climate.copernicus.eu/api-how-to).
 
-## Download weather data
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Cutouts/{country}_{weather_year}.nc
+```
+Depending on country size and your internet connection, this script could take from a few minutes to several hours to run. Ensure that you have space on your computer to store the data, which can be several GB.
 
-Download the weather data to calculate wind and solar potential for the geographical area and time period of interest using the `get_weather_data.py` script. Ensure that you have specified your weather parameters in `Parameters/weather_parameters.xlsx` 
-  
-This script downloads the relevant historical weather data from the ERA-5 reanalysis dataset using [Atlite](https://atlite.readthedocs.io/en/latest/) to create a cutout. For this process to work, you need to register and set up your CDS API key as described on the [Climate Data Store website](https://cds.climate.copernicus.eu/api-how-to).
-
-You can run this script by entering the following command in your terminal:
-
-`.../GEOH2 % python get_weather_data.py`
-
-Depending the length of your time period and size of your area as well as your internet connection, this script could take from a few minutes to several hours to run.
-
-The downloaded data is saved in the Cutouts folder. Ensure that you have space on your computer to store the data, which can be several GB depending on the length of your time period and size of your area.
-
-## Optimize conversion and transportation
+### `optimize_transport_and_conversion` rule
 
 Calculate the cost of the optimal hydrogen transportation and conversion strategy from each hexagon to each demand center using both pipelines and road transport using parameters from `technology_parameters.xlsx`, `demand_parameters.xlsx`, and `country_parameters.xlsx`.
 
-You can run this script by entering the following command in your terminal: 
+You can run this rule by entering the following command in your terminal: 
+```
+snakemake -j [NUMBER OF THREADS] Resources/hex_transport_{country}.geojson
+```
+This rule should take a few minutes to run, depending on country size.
 
-`.../GEOH2 % python optimize_transport_and_conversion.py`
-
-This script should take a few minutes to run, depending on the size of the geographic area you are analyzing.
-
-## Optimize green hydrogen plant design
-
-Design green hydrogen plant to meet the hydrogen demand profile for each demand center for each transportation method to each demand center using the `optimize_hydrogen_plant.py` script. Ensure that you have specified your hydrogen plant parameters in the CSV files in the `Parameters/Basic_H2_plant` folder, your investment parameters in `Parameters/investment_parameters.xlsx`, and your demand centers in `Parameters/demand_parameters.xlsx`.
-
-### Installing a solver
-To use this script, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation.
-
-### Running script
-
-You can run this script by entering the following command in your terminal:
-
-`.../GEOH2 % python optimize_hydrogen_plant.py`
-
-This script will take several minutes to several hours to run, depending on the size of the geographic area you are analyzing, the length of your weather data time period, and the number of demand centers.
-
-## Water costs
+### `calculate_water_costs` rule
 
 Calculate water costs from the ocean and freshwater bodies for hydrogen production in each hexagon using `Parameters/technology_parameters.xlsx` and `Parameters/country_parameters.xlsx`.
 
-You can run this script by entering the following command in your terminal:
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Resources/hex_water_{country}.geojson
+```
+This rule will take a few seconds to run.
 
-`.../GEOH2 % python water_cost.py`
+### `optimize_hydrogen_plant` rule
 
-This script will take a few seconds to run.
+Design green hydrogen plant to meet the hydrogen demand profile for each demand center for each transportation method to each demand center using the `optimize_hydrogen_plant.py` script. Ensure that you have specified your hydrogen plant parameters in the CSV files in the `Parameters/Basic_H2_plant` folder, your investment parameters in `Parameters/investment_parameters.xlsx`, and your demand centers in `Parameters/demand_parameters.xlsx`.
 
-## Total hydrogen costs
-Combine the results `optimize_transport_and_conversion.py`,`optimize_hydrogen_plant.py`, and `water_cost.py` to find the lowest-cost method of producing, transporting, and converting hydrogen for each demand center.
+#### Installing a solver
+To run this rule, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation.
 
-You can run this script by entering the following command in your terminal:
+#### Running rule
 
-`.../GEOH2 % python total_hydrogen_cost.py`
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Resources/hex_lcoh_{country}_{weather_year}.geojson
+```
+This rule will take several minutes to several hours to run, depending on country size and the number of demand centers.
 
-This script will take a few seconds to run.
+### `calculate_total_hydrogen_cost` rule
+Combine results to find the lowest-cost method of producing, transporting, and converting hydrogen for each demand center.
 
-## Visualizing results
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Results/hex_total_cost_{country}_{weather_year}.geojson
+```
+This rule will take a few seconds to run.
+
+### `calculate_cost_components` rule
+
+Calculate the cost for each type of equipment in each polygon. 
+
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Results/hex_cost_components_{country}_{weather_year}.geojson
+```
+This rule will take a few seconds to run.
+
+### `map_costs` rule
 
 Visualize the spatial variation in different costs per kilogram of hydrogen.
 
-Run the `costs_by_component` script to get the cost for each type of equipment in each polygon. 
-
-You can run this script by entering the following command in your terminal:
-
-`.../GEOH2 % python costs_by_component.py`
-
-You can then run the visualisation script by entering the following command in your terminal: 
-
-`.../GEOH2 % python map_costs.py`
-
-This script will take a few seconds to run. 
-
-Note that Windows users may encounter the following error when running the `map_costs` script:
-`AttributeError: 'GeoAxesSubplot' object has no attribute '_autoscaleXon'.`
-This is likely due to a package conflict with geopandas, matplotlib and cartopy. 
-If this error occurs, please create a separate environment including exclusively the dependencies needed in `map_costs` for this script. 
-
+You can run this rule by entering the following command in your terminal:
+```
+snakemake -j [NUMBER OF THREADS] Plots/{country}_{weather_year}
+```
+This rule will take a few seconds to run.
 ___
 
 # Limitations

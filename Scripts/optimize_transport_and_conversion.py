@@ -28,9 +28,12 @@ import json
 #%% Data Input
 
 # Excel file with technology parameters
-technology_parameters = "Parameters/technology_parameters.xlsx"
-demand_parameters = 'Parameters/demand_parameters.xlsx'
-country_excel_path = 'Parameters/country_parameters.xlsx'
+technology_parameters = str(snakemake.input.technology_parameters)
+demand_parameters = str(snakemake.input.demand_parameters)
+country_parameters = str(snakemake.input.country_parameters)
+conversion_parameters = str(snakemake.input.conversion_parameters)
+transport_parameters = str(snakemake.input.transport_parameters)
+pipeline_parameters = str(snakemake.input.pipeline_parameters)
 
 #%% load data from technology parameters Excel file
 
@@ -43,28 +46,24 @@ global_data = pd.read_excel(technology_parameters,
                             index_col='Parameter'
                             ).squeeze("columns")
 
-water_data = pd.read_excel(technology_parameters,
-                            sheet_name='Water',
-                            index_col='Parameter'
-                            ).squeeze("columns")
 demand_center_list = pd.read_excel(demand_parameters,
                                    sheet_name='Demand centers',
                                    index_col='Demand center',
                                    )
-country_parameters = pd.read_excel(country_excel_path,
+country_parameters = pd.read_excel(country_parameters,
                                     index_col='Country')
 
-pipeline_construction = global_data['Pipeline construction allowed']
-road_construction = global_data['Road construction allowed']
+pipeline_construction = snakemake.config["transport"]["pipeline_construction"]
+road_construction = snakemake.config["transport"]["road_construction"]
 
-road_capex_long = infra_data.at['Long road','CAPEX']            #â¬/km from John Hine, converted to Euro (Assumed earth to paved road)
-road_capex_short = infra_data.at['Short road','CAPEX']         #â¬/km for raods < 10 km, from John Hine, converted to Euro (Assumed earth to paved road)
-road_opex = infra_data.at['Short road','OPEX']                 #â¬/km/year from John Hine, converted to Euro (Assumed earth to paved road)
+road_capex_long = infra_data.at['Long road','CAPEX']
+road_capex_short = infra_data.at['Short road','CAPEX']
+road_opex = infra_data.at['Short road','OPEX']
 
-# Handle any hexagons at edges in the geojson which are labelled with a country we aren't analyzing
-
+#%% Handle any hexagons at edges in the geojson which are labelled with a country we aren't analyzing
+hexagon_path = str(snakemake.input.hexagons)
 # Read the GeoJSON file
-with open('Data/hexagons_with_country.geojson', 'r') as file:
+with open(hexagon_path, 'r') as file:
     data = json.load(file)
 
 # If the country of any hexagon is not in the country_parameters file, set the country to "Other" instead
@@ -74,11 +73,11 @@ for feature in data['features']:
         feature['properties']['country'] = "Other"
 
 # Write the modified GeoJSON back to the file
-with open('Data/hexagons_with_country.geojson', 'w') as file:
+with open(hexagon_path, 'w') as file:
     json.dump(data, file)
 
 # Now, load the Hexagon file in geopandas
-hexagon = gpd.read_file('Data/hexagons_with_country.geojson')
+hexagon = gpd.read_file(hexagon_path)
 
 # Create Resources folder to save results if it doesn't already exist
 if not os.path.exists('Resources'):
@@ -117,17 +116,17 @@ for d in demand_center_list.index:
         #!!! maybe this is the place to set a restriction based on distance to demand center-- for all hexagons with a distance below some cutoff point
         # label demand location under consideration
         if hexagon['geometry'][i].contains(demand_location) == True:
-            # demand_fid = i
             # calculate cost of converting hydrogen to ammonia for local demand (i.e. no transport)
             if demand_state == 'NH3':
-            # !!! where are the 0.03 values coming from? it's the cost of heat in unknown units
-                local_conversion_cost = h2_conversion_stand(demand_state+'_load',
-                                                            hydrogen_quantity,
-                                                            country_parameters.loc['Electricity price (euros/kWh)',hexagon.country[i]],
-                                                            country_parameters.loc['Heat price (euros/kWh)',hexagon.country[i]],
-                                                            country_parameters.loc[hexagon['country'][i],'Plant interest rate']
-                                                            )[2]/hydrogen_quantity
-                
+                local_conversion_cost =\
+                    h2_conversion_stand(demand_state+'_load',
+                                        hydrogen_quantity,
+                                        country_parameters.loc['Electricity price (euros/kWh)',hexagon.country[i]],
+                                        country_parameters.loc['Heat price (euros/kWh)',hexagon.country[i]],
+                                        country_parameters.loc[hexagon['country'][i],'Plant interest rate'],
+                                        conversion_parameters
+                                        )[2]/hydrogen_quantity
+
                 trucking_costs.append(local_conversion_cost)
                 pipeline_costs.append(local_conversion_cost)
             else:
@@ -135,12 +134,12 @@ for d in demand_center_list.index:
                                      hydrogen_quantity,
                                      country_parameters.loc['Electricity price (euros/kWh)',hexagon.country[i]],
                                      country_parameters.loc['Heat price (euros/kWh)',hexagon.country[i]],
-                                     country_parameters.loc[hexagon['country'][i],'Plant interest rate']
+                                     country_parameters.loc[hexagon['country'][i],'Plant interest rate'],
+                                     conversion_parameters
                                      )[2]/hydrogen_quantity
                 trucking_costs.append(local_conversion_cost)
                 pipeline_costs.append(local_conversion_cost)
         # determine elec_cost at demand to determine potential energy costs
-        # elec_costs_at_demand = float(hexagon['cheapest_elec_cost'][demand_fid])/1000
         # calculate cost of constructing a road to each hexagon
         if road_construction == True:
             if hexagon['road_dist'][i]==0:
@@ -157,26 +156,32 @@ for d in demand_center_list.index:
                     country_parameters.loc[hexagon['country'][i],'Infrastructure lifetime (years)'])\
                 +hexagon['road_dist'][i]*road_opex
                 
-            trucking_cost, trucking_state = cheapest_trucking_strategy(demand_state,
-                                                                       hydrogen_quantity,
-                                                                       distance_to_demand[i],
-                                                                       country_parameters.loc[hexagon.country[i],'Electricity price (euros/kWh)'],
-                                                                       country_parameters.loc[hexagon.country[i],'Heat price (euros/kWh)'],
-                                                                       country_parameters.loc[hexagon['country'][i],'Infrastructure interest rate'],
-                                                                       country_parameters.loc[hexagon.country[demand_fid],'Electricity price (euros/kWh)'],
-                                                                       )
+            trucking_cost, trucking_state =\
+                cheapest_trucking_strategy(demand_state,
+                                            hydrogen_quantity,
+                                            distance_to_demand[i],
+                                            country_parameters.loc[hexagon.country[i],'Electricity price (euros/kWh)'],
+                                            country_parameters.loc[hexagon.country[i],'Heat price (euros/kWh)'],
+                                            country_parameters.loc[hexagon['country'][i],'Infrastructure interest rate'],
+                                            conversion_parameters,
+                                            transport_parameters,
+                                            country_parameters.loc[hexagon.country[demand_fid],'Electricity price (euros/kWh)'],
+                                            )
             trucking_costs[i] = trucking_cost
             trucking_states[i] = trucking_state
 
         elif hexagon['road_dist'][i]==0:
-            trucking_cost, trucking_state = cheapest_trucking_strategy(demand_state,
-                                                                       hydrogen_quantity,
-                                                                       distance_to_demand[i],
-                                                                       country_parameters.loc[hexagon.country[i],'Electricity price (euros/kWh)'],
-                                                                       country_parameters.loc[hexagon.country[i],'Heat price (euros/kWh)'],
-                                                                       country_parameters.loc[hexagon['country'][i],'Infrastructure interest rate'],
-                                                                       country_parameters.loc[hexagon.country[demand_fid],'Electricity price (euros/kWh)'],
-                                                                       )
+            trucking_cost, trucking_state =\
+                cheapest_trucking_strategy(demand_state,
+                                            hydrogen_quantity,
+                                            distance_to_demand[i],
+                                            country_parameters.loc[hexagon.country[i],'Electricity price (euros/kWh)'],
+                                            country_parameters.loc[hexagon.country[i],'Heat price (euros/kWh)'],
+                                            country_parameters.loc[hexagon['country'][i],'Infrastructure interest rate'],
+                                            conversion_parameters,
+                                            transport_parameters,
+                                            country_parameters.loc[hexagon.country[demand_fid],'Electricity price (euros/kWh)'],
+                                            )
             trucking_costs[i] = trucking_cost
             trucking_states[i] = trucking_state
 
@@ -186,14 +191,17 @@ for d in demand_center_list.index:
         # pipeline costs
         if pipeline_construction== True:
         
-            pipeline_cost, pipeline_type = cheapest_pipeline_strategy(demand_state,
-                                                                      hydrogen_quantity,
-                                                                      distance_to_demand[i],
-                                                                    country_parameters.loc[hexagon.country[i],'Electricity price (euros/kWh)'],
-                                                                    country_parameters.loc[hexagon.country[i],'Heat price (euros/kWh)'],
-                                                                    country_parameters.loc[hexagon['country'][i],'Infrastructure interest rate'],
-                                                                    country_parameters.loc[hexagon.country[demand_fid],'Electricity price (euros/kWh)'],
-                                                                      )
+            pipeline_cost, pipeline_type =\
+                cheapest_pipeline_strategy(demand_state,
+                                          hydrogen_quantity,
+                                          distance_to_demand[i],
+                                        country_parameters.loc[hexagon.country[i],'Electricity price (euros/kWh)'],
+                                        country_parameters.loc[hexagon.country[i],'Heat price (euros/kWh)'],
+                                        country_parameters.loc[hexagon['country'][i],'Infrastructure interest rate'],
+                                        conversion_parameters,
+                                        pipeline_parameters,
+                                        country_parameters.loc[hexagon.country[demand_fid],'Electricity price (euros/kWh)'],
+                                          )
             pipeline_costs[i] = pipeline_cost
         else:
             pipeline_costs[i] = np.nan
@@ -205,5 +213,4 @@ for d in demand_center_list.index:
     hexagon[f'{d} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
 
 # Added force to UTF-8 encoding.
-hexagon.to_file('Resources/hex_transport.geojson', driver='GeoJSON', encoding='utf-8')
-
+hexagon.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8')

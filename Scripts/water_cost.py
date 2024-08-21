@@ -14,9 +14,9 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-hexagons = gpd.read_file('Resources/hex_lcoh.geojson')
-technology_parameters = "Parameters/technology_parameters.xlsx"
-country_excel_path = 'Parameters/country_parameters.xlsx'
+hexagons = gpd.read_file(str(snakemake.input.hexagons))
+technology_parameters = str(snakemake.input.technology_parameters)
+country_excel_path = str(snakemake.input.country_parameters)
 
 water_data = pd.read_excel(technology_parameters,
                             sheet_name='Water',
@@ -55,5 +55,5 @@ hexagons['Ocean water costs'] = h2o_costs_ocean
 hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
 hexagons['Lowest water cost'] = h2o_costs
 
-hexagons.to_file('Resources/hex_water.geojson', driver='GeoJSON', encoding='utf-8')
+hexagons.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8')
 
