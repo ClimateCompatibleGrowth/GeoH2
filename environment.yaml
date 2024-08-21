@@ -1,28 +1,20 @@
 name: geoh2
 channels:
-  - defaults
   - conda-forge
+  - nodefaults
 
 dependencies:
-  - python
   - atlite=0.2.10
   - cartopy
   - gdal=3
-  - geopy
   - geopandas
+  - geopy
   - matplotlib
   - numpy
   - openpyxl
-  - pandas = 1.5.3
+  - pandas=2.1.4
   - pip
-  - pypsa = 0.21.3
-  - shapely = 1.8.4
-  - xarray = 0.20.1
-
-  - pip:
-    - cdsapi
-    - fiona
-    - pyproj
-    - rasterio!= 1.2.10
-    - pillow == 9.2.0
-
+  - pypsa=0.26.0
+  - python
+  - shapely=1.8.4
+  - xarray 
