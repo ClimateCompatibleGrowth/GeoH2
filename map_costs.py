@@ -8,6 +8,7 @@ Created on Thu Apr 27 11:14:48 2023
 This script visualizes the spatial cost of hydrogen for each demand center.
 """
 
+from osgeo import gdal
 import geopandas as gpd
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
