@@ -31,7 +31,9 @@ Then activate this new environment using
 `.../GEOH2 % mamba activate geoh2`
 
 ## CDS API setup
-The `get_weather_data` rule downloads the relevant historical weather data from the ERA-5 reanalysis dataset using [Atlite](https://atlite.readthedocs.io/en/latest/) to create a cutout. For this process to work, you need to register and set up your CDS API key as described on the [Climate Data Store website](https://cds.climate.copernicus.eu/api-how-to). **Note:** Not yet compatible with CDS-Beta, do not upgrade.
+The `get_weather_data` rule downloads the relevant historical weather data from the ERA-5 reanalysis dataset using [Atlite](https://atlite.readthedocs.io/en/latest/) to create a cutout. For this process to work, you need to register and set up your CDS API key as described on the [Climate Data Store website](https://cds.climate.copernicus.eu/api-how-to).
+
+**Note:** Not yet compatible with CDS-Beta, do not upgrade.
 
 ## Solver setup
 For the `optimize_hydrogen_plant` rule to work, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation. 
@@ -92,11 +94,13 @@ Wildcards specify the data used in the workflow. This workflow uses two wildcard
 
 High-level workflow settings are controlled in the config file: `config.yaml`. 
 
-Multiple wildcard values are specified in the `scenario` section. These can be changed to match the `country` and `weather_year` you want. **Note:** `weather_year` can be a list of multiple years, depending on how many years you are analysing.
+Multiple wildcard values are specified in the `scenario` section. These can be changed to match the `country` and `weather_year` you want.
 
 Renewable generators considered for hydrogen plant construction are included in the `generators` section.
 
 In the `transport` section, `pipeline_construction` and `road_construction` can be switched from `True` to `False`, as needed.
+
+ **Note:** `weather_year` can be a list of multiple years, depending on how many years you are analysing.
 
 ## Rules
 
