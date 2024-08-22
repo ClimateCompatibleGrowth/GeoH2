@@ -1,8 +1,8 @@
 scenario:
-  country: ['KE']
-  weather_year: [2022,2023]
+  country: ['NA']
+  weather_year: [2023]
   
-generators: ['Solar','Wind'] # hydro to be added?
+generators: ['Solar','Wind']
 
 transport:
     pipeline_construction: true
