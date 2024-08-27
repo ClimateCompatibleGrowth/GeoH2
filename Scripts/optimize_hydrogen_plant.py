@@ -145,7 +145,7 @@ def optimize_hydrogen_plant(wind_potential, pv_potential, times, demand_profile,
     n.generators_t.p_max_pu['Solar'] = pv_potential
 
     # specify maximum capacity based on land use
-    n.generators.loc['Wind','p_nom_max'] = wind_max_capacity
+    n.generators.loc['Wind','p_nom_max'] = wind_max_capacity*4
     n.generators.loc['Solar','p_nom_max'] = pv_max_capacity
 
     # specify technology-specific and country-specific WACC and lifetime here
