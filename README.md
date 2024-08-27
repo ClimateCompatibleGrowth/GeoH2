@@ -60,7 +60,9 @@ The hexagon file needs to filled with the following attributes:
   - theo_pv: Theoretical potential of standarized PV plants       --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
   - theo_wind: Theoretical potential of standarized wind turbines     --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
   
-Once you have created a hexagon file with these features, save it in the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`.
+Once you have created a hexagon file with these features, save it in the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`. 
+
+**Note:** `COUNTRY ISO CODE` is the country's ISO standard 2-letter abbreviation.
   
 ## Input parameter Excel files
 
@@ -88,19 +90,19 @@ ___
 This repository uses [Snakemake](https://snakemake.readthedocs.io/en/stable/) to automate its workflow (for a gentle introduction to Snakemake, see [Getting Started with Snakemake](https://carpentries-incubator.github.io/workflows-snakemake/) on The Carpentries Incubator).
 
 ## Wildcards
-Wildcards specify the data used in the workflow. This workflow uses two wildcards: `country` (an ISO standard 2 letter abbreviation) and `weather_year` (a 4-digit year between 1940 and 2023 included in the ERA5 dataset).
+Wildcards specify the data used in the workflow. This workflow uses two wildcards: `country` (an ISO standard 2-letter abbreviation) and `weather_year` (a 4-digit year between 1940 and 2023 included in the ERA5 dataset).
 
 ## Config file
 
 High-level workflow settings are controlled in the config file: `config.yaml`. 
 
-Multiple wildcard values are specified in the `scenario` section. These can be changed to match the `country` and `weather_year` you want.
+Multiple wildcard values are specified in the `scenario` section. These can be changed to match the `country` and `weather_year` you are analysing.
 
 Renewable generators considered for hydrogen plant construction are included in the `generators` section.
 
 In the `transport` section, `pipeline_construction` and `road_construction` can be switched from `True` to `False`, as needed.
 
- **Note:** `weather_year` can be a list of multiple years, depending on how many years you are analysing.
+ **Note:** `country` and `weather_year` can be a list of more than one, depending on how many countries and years you are analysing.
 
 ## Rules
 
