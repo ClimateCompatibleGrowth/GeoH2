@@ -46,7 +46,11 @@ ___
 # Preparing input data
 
 ## Hexagons 
-To analyse a different area of interest, the input hexagon file needs to be changed, but needs to follow the logic of the one provided. An explanation of how to create a H3-Hexagon file can be found in the following repo:
+To analyse a different area of interest, the input hexagon file needs to be changed, but needs to follow the logic of the one provided. 
+
+A full walkthrough on all the tools to create these hexagons are in the [GeoH2-data-prep](https://github.com/ClimateCompatibleGrowth/GeoH2-data-prep) repo.
+
+An explanation of how to create a H3-Hexagon file can be found in the following repo:
 
 https://github.com/carderne/ccg-spider
 
