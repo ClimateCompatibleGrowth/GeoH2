@@ -124,6 +124,15 @@ The `optimize_transport_and_conversion` rule, depending on country size, should 
 
 All other rules take a few seconds to run.
 
+### Rule to remove all files
+
+This rule is important to know first, as it will remove all the files that the below rules will create as well as the file you initially saved into the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`.
+
+This is to allow for a quicker transition to analyse more data and to clear up space. Make sure you save the created files that you need elsewhere before running the following rule into the terminal:
+```
+snakemake -j [NUMBER OF CORES TO BE USED] clean
+```
+
 ### Run all rules
 
 This section can be used to run all rules, without having to run exact output files. If any files are changed after a completed run, the same command can be used again and Snakemake will only run the necessary scripts to ensure the results are up to date.
