@@ -86,7 +86,7 @@ if not os.path.exists('Resources'):
 #%% calculate cost of hydrogen state conversion and transportation for demand
 # loop through all demand centers-- limit this on continential scale
 for d in demand_center_list.index:
-    demand_location = Point(demand_center_list.loc[d,'Lat [deg]'], demand_center_list.loc[d,'Lon [deg]'])
+    demand_location = Point(demand_center_list.loc[d,'Lon [deg]'], demand_center_list.loc[d,'Lat [deg]'])
     distance_to_demand = np.empty(len(hexagon))
     hydrogen_quantity = demand_center_list.loc[d,'Annual demand [kg/a]']
     road_construction_costs = np.empty(len(hexagon))
@@ -97,11 +97,6 @@ for d in demand_center_list.index:
     demand_fid = 0
     if demand_state not in ['500 bar','LH2','NH3']:
         raise NotImplementedError(f'{demand_state} demand not supported.')
-
-# label demand location under consideration
-    for i in range(len(hexagon)):
-        if hexagon['geometry'][i].contains(demand_location) == True:
-            demand_fid = i
 
     for i in range(len(hexagon)):
         # calculate distance to demand for each hexagon
@@ -116,29 +111,39 @@ for d in demand_center_list.index:
         #!!! maybe this is the place to set a restriction based on distance to demand center-- for all hexagons with a distance below some cutoff point
         # label demand location under consideration
         if hexagon['geometry'][i].contains(demand_location) == True:
+            ## label demand location under consideration
+            #demand_fid = i
+
             # calculate cost of converting hydrogen to ammonia for local demand (i.e. no transport)
             if demand_state == 'NH3':
                 local_conversion_cost =\
                     h2_conversion_stand(demand_state+'_load',
                                         hydrogen_quantity,
-                                        country_parameters.loc['Electricity price (euros/kWh)',hexagon.country[i]],
-                                        country_parameters.loc['Heat price (euros/kWh)',hexagon.country[i]],
+                                        country_parameters.loc[hexagon['country'][i], 'Electricity price (euros/kWh)'],
+                                        country_parameters.loc[hexagon['country'][i], 'Heat price (euros/kWh)'],
                                         country_parameters.loc[hexagon['country'][i],'Plant interest rate'],
                                         conversion_parameters
                                         )[2]/hydrogen_quantity
 
-                trucking_costs.append(local_conversion_cost)
-                pipeline_costs.append(local_conversion_cost)
+                trucking_costs[i] = local_conversion_cost
+                pipeline_costs[i] = local_conversion_cost
+                trucking_states[i] = "None"
+                road_construction_costs[i] = 0.
+                continue
             else:
-                local_conversion_cost = h2_conversion_stand(demand_state,
-                                     hydrogen_quantity,
-                                     country_parameters.loc['Electricity price (euros/kWh)',hexagon.country[i]],
-                                     country_parameters.loc['Heat price (euros/kWh)',hexagon.country[i]],
-                                     country_parameters.loc[hexagon['country'][i],'Plant interest rate'],
-                                     conversion_parameters
-                                     )[2]/hydrogen_quantity
-                trucking_costs.append(local_conversion_cost)
-                pipeline_costs.append(local_conversion_cost)
+                local_conversion_cost =\
+                    h2_conversion_stand(demand_state,
+                                        hydrogen_quantity,
+                                        country_parameters.loc[hexagon['country'][i], 'Electricity price (euros/kWh)'],
+                                        country_parameters.loc[hexagon['country'][i], 'Heat price (euros/kWh)'],
+                                        country_parameters.loc[hexagon['country'][i],'Plant interest rate'],
+                                        conversion_parameters
+                                        )[2]/hydrogen_quantity
+                trucking_costs[i] = local_conversion_cost
+                pipeline_costs[i] = local_conversion_cost
+                trucking_states[i] = "None"
+                road_construction_costs[i] = 0.
+                continue
         # determine elec_cost at demand to determine potential energy costs
         # calculate cost of constructing a road to each hexagon
         if road_construction == True:
