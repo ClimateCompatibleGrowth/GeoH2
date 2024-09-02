@@ -66,11 +66,13 @@ hexagon_path = str(snakemake.input.hexagons)
 with open(hexagon_path, 'r') as file:
     data = json.load(file)
 
-# If the country of any hexagon is not in the country_parameters file, set the country to "Other" instead
-for feature in data['features']:
+copied_list = data["features"].copy()
+
+# iterates through hexagons and removes ones that have a different country than the one we want
+for feature in copied_list:
     # Access and modify properties
-    if not feature['properties']['country'] in list(country_parameters.index.values):
-        feature['properties']['country'] = "Other"
+    if feature['properties']['country'] != country_parameters.index.values[0]:
+        data['features'].remove(feature)
 
 # Write the modified GeoJSON back to the file
 with open(hexagon_path, 'w') as file:
