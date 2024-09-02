@@ -126,6 +126,8 @@ All other rules take a few seconds to run.
 
 ### Rule to remove all files
 
+**Note:** This rule does not work on Windows, as of yet. Please manually remove the files you need to.
+
 This rule is important to know first, as it will remove all the files that the below rules will create as well as the file you initially saved into the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`.
 
 This is to allow for a quicker transition to analyse more data and to clear up space. Make sure you save the created files that you need elsewhere before running the following rule into the terminal:

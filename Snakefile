@@ -8,7 +8,7 @@ wildcard_constraints:
 
 # rule to delete all necessary files to allow reruns
 rule clean:
-    shell: 'rm -rf Cutouts/*.nc Data/*.geojson Resources/*.geojson Results/*.geojson temp/*.nc Results/*.csv Plots/'
+    shell: 'rm -r Cutouts/*.nc Data/*.geojson Resources/*.geojson Results/*.geojson temp/*.nc Results/*.csv Plots/'
     
 # bulk run rule to run all countries and years listed in config file
 rule calculate_all_countries_and_years_total_hydrogen_costs:
