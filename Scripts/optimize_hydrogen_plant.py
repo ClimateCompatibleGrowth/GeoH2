@@ -264,7 +264,7 @@ if __name__ == "__main__":
                     optimize_hydrogen_plant(wind_profile.sel(hexagon = i),
                                             pv_profile.sel(hexagon = i),
                                             wind_profile.time,
-                                            hydrogen_demand_trucking,
+                                            hydrogen_demand,
                                             hexagons.loc[i,'theo_turbines'],
                                             hexagons.loc[i,'theo_pv'],
                                             country_series,
