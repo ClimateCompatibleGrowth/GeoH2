@@ -33,7 +33,7 @@ Then activate this new environment using
 ## CDS API setup
 The `get_weather_data` rule downloads the relevant historical weather data from the ERA-5 reanalysis dataset using [Atlite](https://atlite.readthedocs.io/en/latest/) to create a cutout. For this process to work, you need to register and set up your CDS API key as described on the [Climate Data Store website](https://cds.climate.copernicus.eu/api-how-to).
 
-**Note:** Not yet compatible with CDS-Beta, do not upgrade.
+**Note:** Ensure the API key and URL are affiliated with CDS-Beta.
 
 ## Solver setup
 For the `optimize_hydrogen_plant` rule to work, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation. 
