@@ -1,11 +1,11 @@
 __pycache__
-Cutouts/
-Data/
-Resources/
-Results/
-Plots/
+cutouts/
+data/
+resources/
+results/
+rlots/
 **/.DS_Store
 .DS_Store
-Temp/
+temp/
 .snakemake/
 gurobi.log
