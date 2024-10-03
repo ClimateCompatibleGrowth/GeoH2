@@ -1,6 +1,6 @@
 __pycache__
 cutouts/
-data/
+data/*
 resources/
 results/
 rlots/
