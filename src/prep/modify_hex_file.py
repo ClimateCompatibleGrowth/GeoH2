@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-This module...
+Created on Sun Apr  2 12:05:51 2023
 
+@author: Claire Halloran, University of Oxford
+
+Functions for preparing the hexagon file for optimization.
 
 """
 import geopandas as gpd
+import pandas as pd
 import json
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def assign_country(hexagons, world):
     """
@@ -17,14 +22,14 @@ def assign_country(hexagons, world):
     Parameters
     ----------
     hexagons : geodataframe
-        Hexagon file from data folder.
+        Hexagon file from data folder
     world : geodataframe
-        World dataset.
+        World dataset
 
     Returns
     -------
     hexagons_with_country : geodataframe
-        Modified hexagons.
+        Modified hexagons
     """
     hexagons.to_crs(world.crs, inplace=True)
     countries = world.drop(columns=[
@@ -39,15 +44,22 @@ def assign_country(hexagons, world):
 
     return hexagons_with_country
 
-def drop_extra_hexagons(hexagon_path, country_parameters):
+def remove_extra_hexagons(hexagon_path, country_parameters):
     """
     Removes duplicated hexagons.
 
     ...
     Parameters
     ----------
+    hexagon_path : string
+        File path to hexagon file
+    country_parameters : dataframe
+        Country file from parameters
+
+    Returns
+    -------
     hexagons : geodataframe
-        Geodataframe containing the hex file.
+        Modified hexagons
     """
     with open(hexagon_path, 'r') as file:
         hexagons = json.load(file)
@@ -60,7 +72,7 @@ def drop_extra_hexagons(hexagon_path, country_parameters):
 
     return hexagons
 
-def update_hexagons(hexagons, hexagon_path=None):
+def update_hexagons(hexagons, hexagon_path):
     """
     Updates hexagon file with the new information
     """
@@ -68,4 +80,22 @@ def update_hexagons(hexagons, hexagon_path=None):
         with open(hexagon_path, 'w') as file:
             json.dump(hexagons, file)
     else:
-        hexagons.to_file("data/updated_hex_final.geojson", driver="GeoJSON")
+        hexagons.to_file(f"{hexagon_path}", driver="GeoJSON")
+
+def main():
+    hexagon_path = "data/hex_final_DJ.geojson" # SNAKEMAKE INPUT
+    country_parameters = pd.read_excel("parameters/country_parameters.xlsx",
+                                        index_col='Country') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file(hexagon_path) 
+    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres')) # may need to switch to higher res
+
+    hexagons_with_country = assign_country(hexagons, world)
+    update_hexagons(hexagons_with_country, hexagon_path)
+
+    # Finish off with the removing extra hexagons.
+    final_hexagons = remove_extra_hexagons(hexagon_path, country_parameters)
+    update_hexagons(final_hexagons, hexagon_path)
+
+
+if __name__ == "__main__":
+    main()
