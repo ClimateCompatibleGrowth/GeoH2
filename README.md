@@ -61,8 +61,8 @@ The hexagon file needs to filled with the following attributes:
   - ocean_dist: Distance to ocean coastline
   - grid_dist: Distance to transmission network
   - road_dist: Distance to road network
-  - theo_pv: Theoretical potential of standarized PV plants       --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
-  - theo_wind: Theoretical potential of standarized wind turbines     --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
+  - theo_pv: Theoretical PV potential --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes. Note that this value should be in MW.
+  - theo_wind: Theoretical wind turbine potential --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes. Note that this value should be in MW.
   
 Once you have created a hexagon file with these features, save it in the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`. 
 
