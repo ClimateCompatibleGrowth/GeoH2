@@ -273,7 +273,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 def cheapest_trucking_strategy(final_state, quantity, distance, 
                                 elec_costs, heat_costs, interest,
                                 conversion_excel_path, transport_excel_path,
-                                elec_costs_demand, elec_cost_grid = 0.):
+                                elec_cost_grid = 0.):
     '''
     calculates the lowest-cost state to transport hydrogen by truck
 
@@ -286,15 +286,13 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
     distance : float
         distance to transport hydrogen.
     elec_costs : float
-        cost per kWh of electricity at hydrogen production site.
+        cost per kWh of electricity for that country.
     heat_costs : float
         cost per kWh of heat.
     interest : float
         interest on conversion and trucking capital investments (not including roads).
     conversion_excel_path: string
         path to conversion parameters excel sheet.
-    elec_costs_demand : float
-        cost per kWh of electricity at hydrogen demand site.
     elec_cost_grid : float
         grid electricity costs that pipeline compressors pay. Default 0.
     
@@ -328,23 +326,23 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
     else:
         dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
                 + trucking_costs('LH2',distance, quantity,interest,transport_excel_path)\
-                    + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]
+                    + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]
     if final_state == 'NH3':
         dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
                 + trucking_costs('NH3',distance, quantity, interest,transport_excel_path)
         dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
                 + trucking_costs('LOHC',distance, quantity, interest,transport_excel_path)\
-                    + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]\
-                        + h2_conversion_stand('NH3_load', quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]
+                    + h2_conversion_stand('LOHC_unload', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
+                        + h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]
     else:
         dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
                 + trucking_costs('NH3',distance, quantity,interest,transport_excel_path)\
-                    + h2_conversion_stand('NH3_unload', quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]\
-                        + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]
+                    + h2_conversion_stand('NH3_unload', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
+                        + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]
         dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
                 + trucking_costs('LOHC',distance, quantity,interest,transport_excel_path)\
-                    + h2_conversion_stand('LOHC_unload', quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]\
-                        + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]
+                    + h2_conversion_stand('LOHC_unload', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]\
+                        + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]
 
     lowest_cost = np.nanmin([dist_costs_500bar, dist_costs_lh2, dist_costs_lohc, dist_costs_nh3])
     
@@ -367,7 +365,6 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
                                 elec_costs, heat_costs,interest, 
                                 conversion_excel_path,
                                 pipeline_excel_path,
-                                elec_costs_demand,
                                 elec_cost_grid = 0.):
     '''
     calculates the lowest-cost way to transport hydrogen via pipeline
@@ -381,15 +378,13 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
     distance : float
         distance to transport hydrogen.
     elec_costs : float
-        cost per kWh of electricity at hydrogen production site.
+        cost per kWh of electricity for that country.
     heat_costs : float
         cost per kWh of heat.
     interest : float
         interest on pipeline capital investments.
     conversion_excel_path: string
         path to conversion parameters excel sheet.
-    elec_costs_demand : float
-        cost per kWh of electricity at hydrogen demand site.
     elec_cost_grid : float
         grid electricity costs that pipeline compressors pay. Default 0.
 
@@ -403,11 +398,11 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
     '''
 
     if final_state == 'NH3':
-        dist_costs_pipeline = pipeline_costs(distance,quantity,elec_cost_grid, pipeline_excel_path, interest)[0]\
-                + h2_conversion_stand(final_state+'_load', quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]  
+        dist_costs_pipeline = pipeline_costs(distance,quantity, elec_cost_grid, pipeline_excel_path, interest)[0]\
+                + h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]  
     else:
-        dist_costs_pipeline = pipeline_costs(distance,quantity,elec_cost_grid,pipeline_excel_path,interest)[0]\
-                + h2_conversion_stand(final_state, quantity, elec_costs_demand, heat_costs, interest, conversion_excel_path)[2]
+        dist_costs_pipeline = pipeline_costs(distance, quantity, elec_cost_grid, pipeline_excel_path, interest)[0]\
+                + h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_excel_path)[2]
 
     costs_per_unit = dist_costs_pipeline/quantity
     cheapest_option = pipeline_costs(distance, quantity, elec_cost_grid, pipeline_excel_path, interest)[1] 
