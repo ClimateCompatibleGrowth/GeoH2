@@ -107,6 +107,7 @@ def main():
                                     sheet_name='Demand centers',
                                     index_col='Demand center',
                                     )
+    demand_centers = demand_center_list.index
     country_params = pd.read_excel(country_params_filepath,
                                         index_col='Country')
     
@@ -120,17 +121,17 @@ def main():
 
     hexagons = gpd.read_file(hexagons_filepath)
 
-    check_folder_exists("resources")
+    check_folder_exists("results")
     
     #%% calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
-    for d in demand_center_list.index:
+    for demand_center in demand_centers:
         # Demand location based variables
-        demand_center_lat = demand_center_list.loc[d,'Lat [deg]']
-        demand_center_lon = demand_center_list.loc[d,'Lon [deg]']
+        demand_center_lat = demand_center_list.loc[demand_center,'Lat [deg]']
+        demand_center_lon = demand_center_list.loc[demand_center,'Lon [deg]']
         demand_location = Point(demand_center_lon, demand_center_lat)
-        hydrogen_quantity = demand_center_list.loc[d,'Annual demand [kg/a]']
-        demand_state = demand_center_list.loc[d,'Demand state']
+        hydrogen_quantity = demand_center_list.loc[demand_center,'Annual demand [kg/a]']
+        demand_state = demand_center_list.loc[demand_center,'Demand state']
 
         # Storage hexagons for costs calculated in the next for loop
         road_construction_costs = np.empty(len(hexagons))
@@ -241,12 +242,12 @@ def main():
                 pipeline_costs[i] = np.nan
 
         # Hexagon file updated with each demand center's costs and states
-        hexagons[f'{d} road construction costs'] = road_construction_costs/hydrogen_quantity
-        hexagons[f'{d} trucking transport and conversion costs'] = trucking_costs # cost of road construction, supply conversion, trucking transport, and demand conversion
-        hexagons[f'{d} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
-        hexagons[f'{d} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
+        hexagons[f'{demand_center} road construction costs'] = road_construction_costs/hydrogen_quantity
+        hexagons[f'{demand_center} trucking transport and conversion costs'] = trucking_costs # cost of road construction, supply conversion, trucking transport, and demand conversion
+        hexagons[f'{demand_center} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
+        hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
 
-    hexagons.to_file('resources/hex_transport_DJ.geojson', driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
+    hexagons.to_file('results/hex.geojson', driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
 
 if __name__ == "__main__":
     main()

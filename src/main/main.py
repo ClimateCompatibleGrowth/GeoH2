@@ -1,16 +1,13 @@
 from functions import CRF, cheapest_trucking_strategy, h2_conversion_stand, cheapest_pipeline_strategy
 import geopandas as gpd
-import geopy.distance
 import numpy as np
-import os
 import pandas as pd
 from shapely.geometry import Point
-import shapely.wkt
 from transport_optimization import calculate_road_construction_cost, calculate_distance_to_demand, check_folder_exists
 
 if __name__ == "__main__":
     # ---------------------------------- Parameters variables ----------------------------------
-    hexagons = gpd.read_file('Resources/hex_transport_DJ.geojson') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file('data/hex_final_DJ.geojson') # SNAKEMAKE INPUT
     tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
     demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
     country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
@@ -24,9 +21,9 @@ if __name__ == "__main__":
                            index_col='Infrastructure')
     
     demand_center_list = pd.read_excel(demand_params_filepath,
-                                    sheet_name='Demand centers',
                                     index_col='Demand center',
                                     )
+    demand_centers = demand_center_list.index
     water_data = pd.read_excel(tech_params_filepath,
                                 sheet_name='Water',
                                 index_col='Parameter'
@@ -58,18 +55,18 @@ if __name__ == "__main__":
     count = 0
     # ------------------------------------------------------------------------------------------------------
 
-    check_folder_exists("resources")
+    check_folder_exists("results")
     # --------------------------------- Transport-optimization section ---------------------------------
 
     #%% calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
-    for d in demand_center_list.index:
+    for demand_center in demand_centers:
         # Demand location based variables
-        demand_center_lat = demand_center_list.loc[d,'Lat [deg]']
-        demand_center_lon = demand_center_list.loc[d,'Lon [deg]']
+        demand_center_lat = demand_center_list.loc[demand_center,'Lat [deg]']
+        demand_center_lon = demand_center_list.loc[demand_center,'Lon [deg]']
         demand_location = Point(demand_center_lon, demand_center_lat)
-        hydrogen_quantity = demand_center_list.loc[d,'Annual demand [kg/a]']
-        demand_state = demand_center_list.loc[d,'Demand state']
+        hydrogen_quantity = demand_center_list.loc[demand_center,'Annual demand [kg/a]']
+        demand_state = demand_center_list.loc[demand_center,'Demand state']
 
         # Storage hexagons for costs calculated in the next for loop
         road_construction_costs = np.empty(len(hexagons))
@@ -204,17 +201,38 @@ if __name__ == "__main__":
             
             # --------------------------------------------------------------------------
         count+=1
-        # -------------------------- Updating transport-optimization hexagons --------------------------
+        # ---------------------------- Updating transport-optimization section ----------------------------
         
         # Hexagon file updated with each demand center's costs and states
-        hexagons[f'{d} road construction costs'] = road_construction_costs/hydrogen_quantity
-        hexagons[f'{d} trucking transport and conversion costs'] = trucking_costs # cost of road construction, supply conversion, trucking transport, and demand conversion
-        hexagons[f'{d} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
-        hexagons[f'{d} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
+        hexagons[f'{demand_center} road construction costs'] = road_construction_costs/hydrogen_quantity
+        hexagons[f'{demand_center} trucking transport and conversion costs'] = trucking_costs # cost of road construction, supply conversion, trucking transport, and demand conversion
+        hexagons[f'{demand_center} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
+        hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
         # --------------------------------------------------------------------------------------------------
-    # --------------------- Updating water-cost hexagons --------------------
+    # ---------------------- Updating water-cost section ---------------------
     hexagons['Ocean water costs'] = h2o_costs_ocean
     hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
     hexagons['Lowest water cost'] = min_h2o_costs
     # ------------------------------------------------------------------------
-    hexagons.to_file("Resources/completed_hex_DJ.geojson", driver='GeoJSON', encoding='utf-8')
+
+    # ------------------------ Updating total-costs section ------------------------
+    for demand_center in demand_centers:
+        hexagons[f'{demand_center} trucking total cost'] =\
+            hexagons[f'{demand_center} road construction costs'] +\
+                hexagons[f'{demand_center} trucking transport and conversion costs'] +\
+                    hexagons['Lowest water cost']
+                        # hexagons[f'{demand_center} trucking production cost'] +\ HYRDOGEN OPTIMIZATION
+        hexagons[f'{demand_center} pipeline total cost'] =\
+                hexagons[f'{demand_center} pipeline transport and conversion costs'] +\
+                    hexagons['Lowest water cost']
+                        # hexagons[f'{demand_center} pipeline production cost'] +\ HYDROGEN OPTIMIZATION
+
+                        
+        for i in range(len(hexagons)):
+            hexagons.loc[i, f'{demand_center} lowest cost'] = np.nanmin(
+                                    [hexagons.loc[i, f'{demand_center} trucking total cost'],
+                                    hexagons.loc[i, f'{demand_center} pipeline total cost']
+                                    ])
+    # ------------------------------------------------------------------------------
+
+    hexagons.to_file("results/completed_hex_DJ.geojson", driver='GeoJSON', encoding='utf-8')

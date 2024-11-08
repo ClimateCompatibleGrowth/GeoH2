@@ -15,7 +15,7 @@ import pandas as pd
 import numpy as np
 
 def main():
-    hexagons = gpd.read_file('Resources/hex_transport_DJ.geojson') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file('results/hex.geojson') # SNAKEMAKE INPUT
     tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
     country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
 
@@ -65,7 +65,7 @@ def main():
     hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
     hexagons['Lowest water cost'] = min_h2o_costs
 
-    hexagons.to_file("Resources/hex_transport_DJ.geojson", driver='GeoJSON', encoding='utf-8')
+    hexagons.to_file("results/hex.geojson", driver='GeoJSON', encoding='utf-8')
 
 if __name__ == "__main__":
     main()
