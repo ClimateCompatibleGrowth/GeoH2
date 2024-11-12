@@ -20,10 +20,10 @@ if __name__ == "__main__":
                            sheet_name='Infra',
                            index_col='Infrastructure')
     
-    demand_center_list = pd.read_excel(demand_params_filepath,
+    demand_params = pd.read_excel(demand_params_filepath,
                                     index_col='Demand center',
                                     )
-    demand_centers = demand_center_list.index
+    demand_centers = demand_params.index
     water_data = pd.read_excel(tech_params_filepath,
                                 sheet_name='Water',
                                 index_col='Parameter'
@@ -51,9 +51,9 @@ if __name__ == "__main__":
     water_transport_costs = water_data['Water transport cost (euros/100 km/m3)']
     water_spec_cost = water_data['Water specific cost (euros/m3)']
     water_demand = water_data['Water demand  (L/kg H2)']
-    elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
     count = 0
     # ------------------------------------------------------------------------------------------------------
+    elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
 
     check_folder_exists("results")
     # --------------------------------- Transport-optimization section ---------------------------------
@@ -62,11 +62,11 @@ if __name__ == "__main__":
     # loop through all demand centers-- limit this on continential scale
     for demand_center in demand_centers:
         # Demand location based variables
-        demand_center_lat = demand_center_list.loc[demand_center,'Lat [deg]']
-        demand_center_lon = demand_center_list.loc[demand_center,'Lon [deg]']
+        demand_center_lat = demand_params.loc[demand_center,'Lat [deg]']
+        demand_center_lon = demand_params.loc[demand_center,'Lon [deg]']
         demand_location = Point(demand_center_lon, demand_center_lat)
-        hydrogen_quantity = demand_center_list.loc[demand_center,'Annual demand [kg/a]']
-        demand_state = demand_center_list.loc[demand_center,'Demand state']
+        hydrogen_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
+        demand_state = demand_params.loc[demand_center,'Demand state']
 
         # Storage hexagons for costs calculated in the next for loop
         road_construction_costs = np.empty(len(hexagons))
@@ -75,7 +75,6 @@ if __name__ == "__main__":
         pipeline_costs = np.empty(len(hexagons))
 
         # Prices from the country excel file
-        elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
         heat_price = country_params['Heat price (euros/kWh)'].iloc[0]
         plant_interest_rate = country_params['Plant interest rate'].iloc[0]
         infrastructure_interest_rate = country_params['Infrastructure interest rate'].iloc[0]

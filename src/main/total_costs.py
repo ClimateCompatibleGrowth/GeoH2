@@ -29,12 +29,12 @@ def main():
         hexagons[f'{demand_center} trucking total cost'] =\
             hexagons[f'{demand_center} road construction costs'] +\
                 hexagons[f'{demand_center} trucking transport and conversion costs'] +\
-                    hexagons['Lowest water cost']
-                        # hexagons[f'{demand_center} trucking production cost'] +\ HYRDOGEN OPTIMIZATION
+                    hexagons[f'{demand_center} trucking production cost'] +\
+                        hexagons['Lowest water cost']
         hexagons[f'{demand_center} pipeline total cost'] =\
                 hexagons[f'{demand_center} pipeline transport and conversion costs'] +\
-                    hexagons['Lowest water cost']
-                        # hexagons[f'{demand_center} pipeline production cost'] +\ HYDROGEN OPTIMIZATION
+                    hexagons[f'{demand_center} pipeline production cost'] +\
+                        hexagons['Lowest water cost']
 
                         
         for i in range(len(hexagons)):
