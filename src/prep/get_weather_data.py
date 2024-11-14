@@ -96,9 +96,9 @@ def main():
     min_lon, min_lat, max_lon, max_lat = create_hexagon_bounds(hexagons)
 
     start_weather_year = 2022 # SNAKEMAKE WILDCARDS
-    end_weather_year = 2022 # SNAKEMAKE WILDCARDS (start_weather_year+1)
+    end_weather_year = 2023 # SNAKEMAKE WILDCARDS (start_weather_year+1)
     start_date = f'{start_weather_year}-01-01'
-    end_date = f'{end_weather_year}-02-01'
+    end_date = f'{end_weather_year}-01-01'
 
     check_folder_exists("cutouts")
     check_folder_exists("temp")

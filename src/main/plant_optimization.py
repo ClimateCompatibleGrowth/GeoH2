@@ -17,294 +17,7 @@ import numpy as np
 import pandas as pd
 import pypsa
 import warnings
-
-
-class Plant:
-    def __init__(self, n, type, water_limit=None):
-        self.n = n
-        self.type = type
-        self.water_limit = water_limit
-
-    def get_hydrogen_network(self, demand_profile, times, country_series):
-        '''
-        Sets up the network.
-
-        Parameters
-        ----------
-        demand_profile : pandas DataFrame
-            hourly dataframe of hydrogen demand in kg.
-        times : xarray DataArray
-            1D dataarray with timestamps for wind and solar potential.
-        country_series: pandas Series
-            interest rate and lifetime information.
-
-        Returns
-        -------
-        n :
-            pypsa network.
-        '''
-        # Set the time values for the network
-        self.n.set_snapshots(times)
-
-        # Import the design of the H2 plant into the network
-        self.n.import_from_csv_folder("parameters/basic_h2_plant")
-
-        # Import demand profile
-        # Note: All flows are in MW or MWh, conversions for hydrogen done using HHVs. Hydrogen HHV = 39.4 MWh/t
-        self.n.add('Load',
-            'Hydrogen demand',
-            bus = 'Hydrogen',
-            p_set = demand_profile['Demand']/1000*39.4,
-            )
-
-        # need to discuss with Alycia, does this need it's own function, would it be the same for any plant? 
-        # should it be in the main body?
-        for item in [self.n.links, self.n.stores, self.n.storage_units]:
-            item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
-        
-        return n
-    
-    # think about the below function and if it makes sense
-    def set_generator_in_network(self, generator, generator_potential, generator_max_capacity, country_series):
-        '''
-        Sets provided generator in the network.
-
-        Parameters
-        ----------
-        generator : string
-            name of generator to add into the network.
-        generator_potential : xarray DataArray
-            1D dataarray of per-unit generator potential in hexagon.
-        generator_max_capacity :
-            ...
-        country_series: pandas Series
-            interest rate and lifetime information.
-        '''
-        # Send the weather data to the model
-        self.n.generators_t.p_max_pu[f'{generator}'] = generator_potential
-
-        # specify maximum capacity based on land use
-        self.n.generators.loc[f'{generator}','p_nom_max'] = generator_max_capacity*4
-
-        # specify technology-specific and country-specific WACC and lifetime here
-        self.n.generators.loc[f'{generator}','capital_cost'] = self.n.generators.loc[f'{generator}','capital_cost']\
-            * CRF(country_series[f'{generator} interest rate'], country_series[f'{generator} lifetime (years)'])
-        
-    def set_wind_in_network(self, wind_potential, wind_max_capacity, country_series):
-        '''
-        Sets wind in the network.
-
-        Parameters
-        ----------
-        generator : string
-            name of generator to add into the network.
-        wind_potential : xarray DataArray
-            1D dataarray of per-unit wind potential in hexagon.
-        wind_max_capacity :
-            ...
-        country_series: pandas Series
-            interest rate and lifetime information.
-        '''
-         # Send the weather data to the model
-        self.n.generators_t.p_max_pu['Wind'] = wind_potential
-
-        # specify maximum capacity based on land use
-        self.n.generators.loc['Wind','p_nom_max'] = wind_max_capacity*4
-
-        # specify technology-specific and country-specific WACC and lifetime here
-        self.n.generators.loc['Wind','capital_cost'] = self.n.generators.loc['Wind','capital_cost']\
-            * CRF(country_series['Wind interest rate'], country_series['Wind lifetime (years)'])
-        
-    def set_pv_in_network(self, pv_potential, pv_max_capacity, country_series):
-        '''
-        Sets solar in the network.
-
-        Parameters
-        ----------
-        generator : string
-            name of generator to add into the network.
-        pv_potential : xarray DataArray
-            1D dataarray of per-unit solar potential in hexagon.
-        pv_max_capacity :
-            ...
-        country_series: pandas Series
-            interest rate and lifetime information.
-        '''
-         # Send the weather data to the model
-        self.n.generators_t.p_max_pu['Solar'] = pv_potential
-
-        # specify maximum capacity based on land use
-        self.n.generators.loc['Solar','p_nom_max'] = pv_max_capacity
-
-        # specify technology-specific and country-specific WACC and lifetime here
-        self.n.generators.loc['Solar','capital_cost'] = self.n.generators.loc['Solar','capital_cost']\
-            * CRF(country_series['Solar interest rate'], country_series['Solar lifetime (years)'])
-
-    def solve_model(self, solver):
-        '''
-        Solves model using the provided solver.
-
-        Parameters
-        ----------
-        solver : string
-            name of solver to be used.
-        '''
-        self.n.lopf(solver_name=solver,
-            solver_options = {'LogToConsole':0, 'OutputFlag':0},
-            pyomo=False,
-            )
-
-    def get_water_constraint(self, demand_profile): 
-        '''
-        Calculates the water constraint.
-
-        Parameters
-        ----------
-        demand_profile : pandas DataFrame
-            hourly dataframe of hydrogen demand in kg.
-        water_limit : float
-            annual limit on water available for electrolysis in hexagon, in cubic meters.
-
-        Returns
-        -------
-        water_constraint : boolean
-            whether there is a water constraint or not.
-        '''
-        # total hydrogen demand in kg
-        total_hydrogen_demand = demand_profile['Demand'].sum()
-        # check if hydrogen demand can be met based on hexagon water availability
-        water_constraint =  total_hydrogen_demand <= self.water_limit * 111.57 # kg H2 per cubic meter of water
-        
-        return water_constraint
-
-    def get_results(self, generators):
-        '''
-        Calculates the water constraint.
-
-        Parameters
-        ----------
-        generators : list
-            contains types of generators that this plant uses.
-        water_limit : float
-            annual limit on water available for electrolysis in hexagon, in cubic meters. Default is None.
-
-        Returns
-        -------
-        lcoh : float
-            levelized cost per kg hydrogen.
-        generator_capactities : dictionary
-            contains each generator with their optimal capacity in MW.
-        electrolyzer_capacity: float
-            optimal electrolyzer capacity in MW.
-        battery_capacity: float
-            optimal battery storage capacity in MW/MWh (1 hour batteries).
-        h2_storage: float
-            optimal hydrogen storage capacity in MWh.
-        '''
-        generator_capacities = {}
-        if self.water_limit != None :
-            water_constraint = plant.get_water_constraint(hydrogen_demand_trucking)
-            if water_constraint == False:
-                        print('Not enough water to meet hydrogen demand!')
-                        lcoh = np.nan
-                        for generator in generators:
-                             generator_capacities[generator] = np.nan
-                        electrolyzer_capacity = np.nan
-                        battery_capacity = np.nan
-                        h2_storage = np.nan
-
-        if self.water_limit == None :
-            lcoh = self.n.objective/(self.n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
-            for generator in generators:
-                 generator_capacities[generator] = self.n.generators.p_nom_opt[f"{generator}"]
-            electrolyzer_capacity = self.n.links.p_nom_opt['Electrolysis']
-            battery_capacity = self.n.storage_units.p_nom_opt['Battery']
-            h2_storage = self.n.stores.e_nom_opt['Compressed H2 Store']
-
-        return lcoh, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
-
-def create_override_components():
-    """Set up new component attributes as required"""
-    # Modify the capacity of a link so that it can attach to 2 buses.
-    override_component_attrs = pypsa.descriptors.Dict(
-        {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
-    )
-
-    override_component_attrs["Link"].loc["bus2"] = [
-        "string",
-        np.nan,
-        np.nan,
-        "2nd bus",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["efficiency2"] = [
-        "static or series",
-        "per unit",
-        1.0,
-        "2nd bus efficiency",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["p2"] = [
-        "series",
-        "MW",
-        0.0,
-        "2nd bus output",
-        "Output",
-    ]
-    return override_component_attrs
-
-def get_pv_profile(cutout, layout, hexagons):
-    '''
-    Sets the solar profile in the cutout.
-
-    Parameters
-    ----------
-    cutout : 
-        ...
-    layout : 
-        ...
-    hexagons :
-        ...
-    Returns
-    -------
-    pv_profile : 
-        ...
-    '''
-    pv_profile = cutout.pv(
-    panel= 'CSi',
-    orientation='latitude_optimal',
-    layout = layout,
-    shapes = hexagons,
-    per_unit = True
-    )
-    pv_profile = pv_profile.rename(dict(dim_0='hexagon'))
-    return pv_profile
-
-def get_wind_profile(cutout, layout, hexagons):
-    '''
-    Sets the wind profile in the cutout.
-
-    Parameters
-    ----------
-    cutout : 
-        ...
-    layout : 
-        ...
-    hexagons :
-        ...
-    Returns
-    -------
-    wind_profile : 
-        ...
-    '''
-    wind_profile = cutout.wind(
-        turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
-        layout = layout,
-        shapes = hexagons,
-        per_unit = True
-        )
-    wind_profile = wind_profile.rename(dict(dim_0='hexagon'))
-    return wind_profile
+from network import Network
 
 def get_demand_schedule(quantity, start_date, end_date, transport_state, transport_params_filepath):
     '''
@@ -359,6 +72,144 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
         trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
 
     return trucking_hourly_demand_schedule, pipeline_hourly_demand_schedule
+
+def get_pv_profile(cutout, layout, hexagons):
+    '''
+    Sets the solar profile in the cutout.
+
+    Parameters
+    ----------
+    cutout : 
+        ...
+    layout : 
+        ...
+    hexagons :
+        ...
+    Returns
+    -------
+    pv_profile : 
+        ...
+    '''
+    pv_profile = cutout.pv(
+    panel= 'CSi',
+    orientation='latitude_optimal',
+    layout = layout,
+    shapes = hexagons,
+    per_unit = True
+    )
+    pv_profile = pv_profile.rename(dict(dim_0='hexagon'))
+    return pv_profile
+
+def get_wind_profile(cutout, layout, hexagons):
+    '''
+    Sets the wind profile in the cutout.
+
+    Parameters
+    ----------
+    cutout : 
+        ...
+    layout : 
+        ...
+    hexagons :
+        ...
+    Returns
+    -------
+    wind_profile : 
+        ...
+    '''
+    wind_profile = cutout.wind(
+        turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
+        layout = layout,
+        shapes = hexagons,
+        per_unit = True
+        )
+    wind_profile = wind_profile.rename(dict(dim_0='hexagon'))
+    return wind_profile
+
+def solve_model(n, solver):
+    '''
+    Solves model using the provided solver.
+
+    Parameters
+    ----------
+    n : 
+        network
+    solver : string
+        name of solver to be used.
+    '''
+    n.lopf(solver_name=solver,
+        solver_options = {'LogToConsole':0, 'OutputFlag':0},
+        pyomo=False,
+        )
+
+def _get_water_constraint(demand_profile, water_limit): 
+    '''
+    Calculates the water constraint.
+
+    Parameters
+    ----------
+    demand_profile : pandas DataFrame
+        hourly dataframe of hydrogen demand in kg.
+    water_limit : float
+        annual limit on water available for electrolysis in hexagon, in cubic meters.
+
+    Returns
+    -------
+    water_constraint : boolean
+        whether there is a water constraint or not.
+    '''
+    # total hydrogen demand in kg
+    total_hydrogen_demand = demand_profile['Demand'].sum()
+    # check if hydrogen demand can be met based on hexagon water availability
+    water_constraint =  total_hydrogen_demand <= water_limit * 111.57 # kg H2 per cubic meter of water
+    
+    return water_constraint
+
+def get_results(n, demand_profile, generators, water_limit=None):
+    '''
+    Calculates the water constraint.
+
+    Parameters
+    ----------
+    demand_profile : pandas DataFrame
+        hourly dataframe of hydrogen demand in kg.
+    generators : list
+        contains types of generators that this plant uses.
+
+    Returns
+    -------
+    lcoh : float
+        levelized cost per kg hydrogen.
+    generator_capactities : dictionary
+        contains each generator with their optimal capacity in MW.
+    electrolyzer_capacity: float
+        optimal electrolyzer capacity in MW.
+    battery_capacity: float
+        optimal battery storage capacity in MW/MWh (1 hour batteries).
+    h2_storage: float
+        optimal hydrogen storage capacity in MWh.
+    '''
+    generator_capacities = {}
+    if water_limit != None :
+        water_constraint = _get_water_constraint(demand_profile, water_limit)
+        if water_constraint == False:
+                    print('Not enough water to meet hydrogen demand!')
+                    lcoh = np.nan
+                    for generator in generators:
+                            generator_capacities[generator] = np.nan
+                    electrolyzer_capacity = np.nan
+                    battery_capacity = np.nan
+                    h2_storage = np.nan
+
+    if water_limit == None :
+        lcoh = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
+        for generator in generators:
+                generator_capacities[generator] = n.generators.p_nom_opt[f"{generator}"]
+        electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
+        battery_capacity = n.storage_units.p_nom_opt['Battery']
+        h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
+
+    return lcoh, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
 
 
 if __name__ == "__main__":
@@ -415,8 +266,12 @@ if __name__ == "__main__":
             pv_potential = pv_profile.sel(hexagon = i)
             wind_max_capacity = hexagons.loc[i,'theo_turbines']
             pv_max_capacity = hexagons.loc[i,'theo_pv']
-
-            hydrogen_demand_trucking, hydrogen_demand_pipeline =\
+            generators = {
+                    "Wind" : [wind_potential, wind_max_capacity],
+                    "Solar" : [pv_potential, pv_max_capacity]
+                 }
+            
+            trucking_demand_schedule, pipeline_demand_schedule =\
                 get_demand_schedule(hydrogen_quantity,
                                 start_date,
                                 end_date,
@@ -425,22 +280,19 @@ if __name__ == "__main__":
             
             transport_types = ["trucking", "pipeline"]
             for transport in transport_types:
-                n = pypsa.Network(override_component_attrs=create_override_components())
-                plant = Plant(n, "Hydrogen")
+                network = Network("Hydrogen", generators)
                 if transport == "trucking":
-                    n = plant.get_hydrogen_network(hydrogen_demand_trucking, wind_profile.time, country_series)
-                    plant.set_wind_in_network(wind_potential, wind_max_capacity, country_series)
-                    plant.set_pv_in_network(pv_potential, pv_max_capacity, country_series)
-                    plant.solve_model(solver)
-                    lcohs_trucking[i], generator_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = plant.get_results(generators)
+                    network.set_network(trucking_demand_schedule, wind_profile.time, country_series)
+                    network.set_generators_in_network(country_series)
+                    solve_model(network.n, solver)
+                    lcohs_trucking[i], generator_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
                     t_solar_capacities[i] = generator_capacities["Solar"]
                     t_wind_capacities[i] = generator_capacities["Wind"]
                 else:
-                    n = plant.get_hydrogen_network(hydrogen_demand_pipeline, wind_profile.time, country_series)
-                    plant.set_wind_in_network(wind_potential, wind_max_capacity, country_series)
-                    plant.set_pv_in_network(pv_potential, pv_max_capacity, country_series)  
-                    plant.solve_model(solver)
-                    lcohs_pipeline[i], generator_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = plant.get_results(generators)
+                    network.set_network(pipeline_demand_schedule, wind_profile.time, country_series)
+                    network.set_generators_in_network(country_series)
+                    solve_model(network.n, solver)
+                    lcohs_pipeline[i], generator_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
                     p_solar_capacities[i] = generator_capacities["Solar"]
                     p_wind_capacities[i] = generator_capacities["Wind"]
                 
