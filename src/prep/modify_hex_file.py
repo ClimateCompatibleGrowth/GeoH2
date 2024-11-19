@@ -65,9 +65,10 @@ def remove_extra_hexagons(hexagon_path, country_parameters):
         hexagons = json.load(file)
 
     copied_list = hexagons["features"].copy()
+    country_name = country_parameters.index.values[0]
 
     for feature in copied_list:
-        if feature['properties']['country'] != country_parameters.index.values[0]:
+        if feature['properties']['country'] != country_name:
             hexagons['features'].remove(feature)
 
     return hexagons

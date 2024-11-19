@@ -22,9 +22,9 @@ import atlite
 import geopandas as gpd
 import os
 
-def create_hexagon_bounds(hexagons):
+def calculate_coords(hexagons):
     """
-    Creates hexagon bounds from hexagon file.
+    Calculates mininum and maximum coordinates using bounds from the hexagon file.
 
     ...
     Parameters
@@ -93,7 +93,7 @@ def main():
     # Displays information on process as it runs.
     logging.basicConfig(level=logging.INFO)
 
-    min_lon, min_lat, max_lon, max_lat = create_hexagon_bounds(hexagons)
+    min_lon, min_lat, max_lon, max_lat = calculate_coords(hexagons)
 
     start_weather_year = 2022 # SNAKEMAKE WILDCARDS
     end_weather_year = 2023 # SNAKEMAKE WILDCARDS (start_weather_year+1)
