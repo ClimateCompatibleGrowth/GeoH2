@@ -15,7 +15,6 @@ Bring together all previous data to calculate lowest-cost hydrogen
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from transport_optimization import check_folder_exists
 
 def main():
     hexagons = gpd.read_file('results/hex.geojson') # SNAKEMAKE INPUT

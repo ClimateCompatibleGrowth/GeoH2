@@ -10,12 +10,10 @@ hydrogen plant capacity.
 """
 
 import atlite
-from functions import CRF
 import geopandas as gpd
 import logging
 import numpy as np
 import pandas as pd
-import pypsa
 import warnings
 from network import Network
 
@@ -246,7 +244,7 @@ if __name__ == "__main__":
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']
             wind_potential = wind_profile.sel(hexagon = i)
             pv_potential = pv_profile.sel(hexagon = i)
-            wind_max_capacity = hexagons.loc[i,'theo_turbines']
+            wind_max_capacity = hexagons.loc[i,'theo_turbines']*4
             pv_max_capacity = hexagons.loc[i,'theo_pv']
             generators = {
                     "Wind" : [wind_potential, wind_max_capacity],

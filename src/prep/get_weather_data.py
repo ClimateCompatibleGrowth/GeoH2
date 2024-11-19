@@ -20,7 +20,6 @@ For this rule to work you must have
 import logging
 import atlite
 import geopandas as gpd
-import os
 from utils import check_folder_exists
 
 def calculate_coords(hexagons):

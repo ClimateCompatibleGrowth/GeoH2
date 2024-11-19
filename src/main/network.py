@@ -1,12 +1,6 @@
-
-import atlite
-from functions import CRF
-import geopandas as gpd
-import logging
 import numpy as np
-import pandas as pd
 import pypsa
-import warnings
+from functions import CRF
 
 class Network:
     """
@@ -14,17 +8,20 @@ class Network:
 
     Attributes
     ----------
-    name : str
-        first name of the person
-    surname : str
-        family name of the person
-    age : int
-        age of the person
-
+    type : string
+        type of fuel demand.
+    generators : dictionary
+        contains generator types with their potential and maximum capacity.
+    n :
+        network. Default is None
     Methods
     -------
-    info(additional=""):
-        Prints the person's name and age.
+    set_network(demand_profile, times, country_series):
+        sets up the network.
+    set_generators_in_network(country_series):
+        sets provided generator in the network.
+    _create_override_components():
+        set up new component attributes as required.
     """
     def __init__(self, type, generators):
         """
@@ -38,7 +35,6 @@ class Network:
         '''
         Sets up the network.
 
-        ...
         Parameters
         ----------
         demand_profile : pandas DataFrame
@@ -89,7 +85,7 @@ class Network:
             self.n.generators_t.p_max_pu[f'{gen}'] = gen_list[0]
 
             # specify maximum capacity based on land use
-            self.n.generators.loc[f'{gen}','p_nom_max'] = gen_list[1]*4
+            self.n.generators.loc[f'{gen}','p_nom_max'] = gen_list[1]
 
             # specify technology-specific and country-specific WACC and lifetime here
             self.n.generators.loc[f'{gen}','capital_cost'] = self.n.generators.loc[f'{gen}','capital_cost']\
