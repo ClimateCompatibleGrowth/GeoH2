@@ -1,9 +1,13 @@
-from functions import CRF, cheapest_trucking_strategy, h2_conversion_stand, cheapest_pipeline_strategy
+import atlite
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
-from transport_optimization import calculate_road_construction_cost, calculate_distance_to_demand, check_folder_exists
+
+from functions import cheapest_trucking_strategy, h2_conversion_stand, cheapest_pipeline_strategy
+from network import Network
+from plant_optimization import get_demand_schedule, get_generator_profile, solve_model, get_results
+from transport_optimization import calculate_road_construction_cost, calculate_dist_to_demand, check_folder_exists
 
 if __name__ == "__main__":
     # ---------------------------------- Parameters variables ----------------------------------
@@ -30,6 +34,7 @@ if __name__ == "__main__":
                                 ).squeeze("columns")
     country_params = pd.read_excel(country_params_filepath,
                                         index_col='Country')
+    elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
     # ------------------------------------------------------------------------------------------
 
     # --------------------------------- Transport-optimization variables -----------------------
@@ -53,14 +58,31 @@ if __name__ == "__main__":
     water_demand = water_data['Water demand  (L/kg H2)']
     count = 0
     # ------------------------------------------------------------------------------------------------------
-    elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
+
+    # ------------------------------------ Plant-optimization variables ------------------------------------
+    country_series = country_params.iloc[0]
+    weather_year = 2022             # snakemake.wildcards.weather_year
+    end_weather_year = 2023         # int(snakemake.wildcards.weather_year)+1
+    start_date = f'{weather_year}-01-01'
+    end_date = f'{end_weather_year}-01-01'
+    solver = "gurobi" # maybe make this into a snakemake wildcard?
+    generators = {"Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
+
+    cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
+    layout = cutout.uniform_layout()
+    
+    pv_profile = get_generator_profile("Solar", cutout, layout, hexagons)
+    wind_profile = get_generator_profile("Wind", cutout, layout, hexagons)
+
+    # ------------------------------------------------------------------------------------------------------
 
     check_folder_exists("results")
-    # --------------------------------- Transport-optimization section ---------------------------------
+
 
     #%% calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
     for demand_center in demand_centers:
+        # ------------------------------ Transport-optimization section part 1 ------------------------------
         # Demand location based variables
         demand_center_lat = demand_params.loc[demand_center,'Lat [deg]']
         demand_center_lon = demand_params.loc[demand_center,'Lon [deg]']
@@ -82,11 +104,33 @@ if __name__ == "__main__":
         
         if demand_state not in ['500 bar','LH2','NH3']:
             raise NotImplementedError(f'{demand_state} demand not supported.')
+        # ----------------------------------------------------------------------------------------------
+
+        # --------------------------------- Plant-optimization section  part 1 ---------------------------------
+        # trucking variables
+        lcohs_trucking = np.zeros(len(pv_profile.hexagon))
+        t_solar_capacities= np.zeros(len(pv_profile.hexagon))
+        t_wind_capacities= np.zeros(len(pv_profile.hexagon))
+        t_electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
+        t_battery_capacities = np.zeros(len(pv_profile.hexagon))
+        t_h2_storages= np.zeros(len(pv_profile.hexagon))
         
+        # pipeline variables
+        lcohs_pipeline = np.zeros(len(pv_profile.hexagon))
+        p_solar_capacities= np.zeros(len(pv_profile.hexagon))
+        p_wind_capacities= np.zeros(len(pv_profile.hexagon))
+        p_electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
+        p_battery_capacities = np.zeros(len(pv_profile.hexagon))
+        p_h2_storages= np.zeros(len(pv_profile.hexagon))
+
+        hydrogen_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
+
+        # --------------------------------------------------------------------------------------
         for i in range(len(hexagons)):
+            # ------------------------------ Transport-optimization section part 2 ------------------------------
             distance_to_road = hexagons['road_dist'][i]
             hex_geometry = hexagons['geometry'][i]
-            dist_to_demand = calculate_distance_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
+            dist_to_demand = calculate_dist_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
 
             #!!! maybe this is the place to set a restriction based on distance to demand center-- for all hexagons with a distance below some cutoff point
             # label demand location under consideration
@@ -176,6 +220,42 @@ if __name__ == "__main__":
                 pipeline_costs[i] = np.nan
             # --------------------------------------------------------------------------------------
 
+            # --------------------------------- Plant-optimization section  part 2 ---------------------------------
+            trucking_state = trucking_states[i]
+            wind_potential = wind_profile.sel(hexagon = i)
+            pv_potential = pv_profile.sel(hexagon = i)
+            wind_max_capacity = hexagons.loc[i,'theo_turbines']
+            pv_max_capacity = hexagons.loc[i,'theo_pv']
+            generators = {
+                    "Wind" : [wind_potential, wind_max_capacity],
+                    "Solar" : [pv_potential, pv_max_capacity]
+                 }
+            
+            trucking_demand_schedule, pipeline_demand_schedule =\
+                get_demand_schedule(hydrogen_quantity,
+                                start_date,
+                                end_date,
+                                trucking_state,
+                                transport_params_filepath)
+            
+            transport_types = ["trucking", "pipeline"]
+            for transport in transport_types:
+                network = Network("Hydrogen", generators)
+                if transport == "trucking":
+                    network.set_network(trucking_demand_schedule, wind_profile.time, country_series)
+                    network.set_generators_in_network(country_series)
+                    solve_model(network.n, solver)
+                    lcohs_trucking[i], generator_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
+                    t_solar_capacities[i] = generator_capacities["Solar"]
+                    t_wind_capacities[i] = generator_capacities["Wind"]
+                else:
+                    network.set_network(pipeline_demand_schedule, wind_profile.time, country_series)
+                    network.set_generators_in_network(country_series)
+                    solve_model(network.n, solver)
+                    lcohs_pipeline[i], generator_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
+                    p_solar_capacities[i] = generator_capacities["Solar"]
+                    p_wind_capacities[i] = generator_capacities["Wind"]
+            # --------------------------------------------------------------------------------------
             # --------------------------- Water-cost section ---------------------------
             # Water cost for each hexagon for each kg hydrogen produced
             if count == 0:
@@ -208,6 +288,27 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
         hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
         # --------------------------------------------------------------------------------------------------
+
+        # ---------------------------- Updating transport-optimization section ----------------------------
+        # updating trucking hexagons
+        hexagons[f'{demand_center} trucking solar capacity'] = t_solar_capacities
+        hexagons[f'{demand_center} trucking wind capacity'] = t_wind_capacities
+        hexagons[f'{demand_center} trucking electrolyzer capacity'] = t_electrolyzer_capacities
+        hexagons[f'{demand_center} trucking battery capacity'] = t_battery_capacities
+        hexagons[f'{demand_center} trucking H2 storage capacity'] = t_h2_storages
+        # save trucking LCOH
+        hexagons[f'{demand_center} trucking production cost'] = lcohs_trucking            
+
+        # updating pipeline hexagons
+        hexagons[f'{demand_center} pipeline solar capacity'] = p_solar_capacities
+        hexagons[f'{demand_center} pipeline wind capacity'] = p_wind_capacities
+        hexagons[f'{demand_center} pipeline electrolyzer capacity'] = p_electrolyzer_capacities
+        hexagons[f'{demand_center} pipeline battery capacity'] = p_battery_capacities
+        hexagons[f'{demand_center} pipeline H2 storage capacity'] = p_h2_storages
+        # add optimal LCOH for each hexagon to hexagon file
+        hexagons[f'{demand_center} pipeline production cost'] = lcohs_pipeline
+        # --------------------------------------------------------------------------------------------------
+
     # ---------------------- Updating water-cost section ---------------------
     hexagons['Ocean water costs'] = h2o_costs_ocean
     hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
@@ -219,12 +320,12 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} trucking total cost'] =\
             hexagons[f'{demand_center} road construction costs'] +\
                 hexagons[f'{demand_center} trucking transport and conversion costs'] +\
-                    hexagons['Lowest water cost']
-                        # hexagons[f'{demand_center} trucking production cost'] +\ HYRDOGEN OPTIMIZATION
+                        hexagons[f'{demand_center} trucking production cost'] +\
+                            hexagons['Lowest water cost']
         hexagons[f'{demand_center} pipeline total cost'] =\
                 hexagons[f'{demand_center} pipeline transport and conversion costs'] +\
-                    hexagons['Lowest water cost']
-                        # hexagons[f'{demand_center} pipeline production cost'] +\ HYDROGEN OPTIMIZATION
+                    hexagons[f'{demand_center} pipeline production cost'] +\
+                        hexagons['Lowest water cost']
 
                         
         for i in range(len(hexagons)):

@@ -73,12 +73,14 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
 
     return trucking_hourly_demand_schedule, pipeline_hourly_demand_schedule
 
-def get_pv_profile(cutout, layout, hexagons):
+def get_generator_profile(generator, cutout, layout, hexagons):
     '''
-    Sets the solar profile in the cutout.
+    Sets the profile of the specified generator in the cutout.
 
     Parameters
     ----------
+    generator : string
+        ...
     cutout : 
         ...
     layout : 
@@ -87,44 +89,24 @@ def get_pv_profile(cutout, layout, hexagons):
         ...
     Returns
     -------
-    pv_profile : 
+    profile : 
         ...
     '''
-    pv_profile = cutout.pv(
-    panel= 'CSi',
-    orientation='latitude_optimal',
-    layout = layout,
-    shapes = hexagons,
-    per_unit = True
-    )
-    pv_profile = pv_profile.rename(dict(dim_0='hexagon'))
-    return pv_profile
-
-def get_wind_profile(cutout, layout, hexagons):
-    '''
-    Sets the wind profile in the cutout.
-
-    Parameters
-    ----------
-    cutout : 
-        ...
-    layout : 
-        ...
-    hexagons :
-        ...
-    Returns
-    -------
-    wind_profile : 
-        ...
-    '''
-    wind_profile = cutout.wind(
-        turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
-        layout = layout,
-        shapes = hexagons,
-        per_unit = True
-        )
-    wind_profile = wind_profile.rename(dict(dim_0='hexagon'))
-    return wind_profile
+    if generator == "Solar":
+        profile = cutout.pv(panel= 'CSi',
+                            orientation='latitude_optimal',
+                            layout = layout,
+                            shapes = hexagons,
+                            per_unit = True)
+        profile = profile.rename(dict(dim_0='hexagon'))
+    elif generator == "Wind":
+        profile = cutout.wind(turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
+                            layout = layout,
+                            shapes = hexagons,
+                            per_unit = True)
+        profile = profile.rename(dict(dim_0='hexagon'))
+    
+    return profile
 
 def solve_model(n, solver):
     '''
@@ -222,24 +204,24 @@ if __name__ == "__main__":
     country_params = pd.read_excel(country_params_filepath,
                                         index_col='Country')
     country_series = country_params.iloc[0]
-    demand_center_list = pd.read_excel(demand_params_filepath,
+    demand_params = pd.read_excel(demand_params_filepath,
                                     index_col='Demand center',
                                     )
-    demand_centers = demand_center_list.index
+    demand_centers = demand_params.index
 
     weather_year = 2022             # snakemake.wildcards.weather_year
     end_weather_year = 2023         # int(snakemake.wildcards.weather_year)+1
     start_date = f'{weather_year}-01-01'
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
-    generators = ["Wind", "Solar"] # already in the config, used in map_costs.py line 268
+    generators = {"Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
     hexagons = gpd.read_file('results/completed_hex_DJ.geojson') # SNAKEMAKE INPUT
 
     cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
     layout = cutout.uniform_layout()
     
-    pv_profile = get_pv_profile(cutout, layout, hexagons)
-    wind_profile = get_wind_profile(cutout, layout, hexagons)
+    pv_profile = get_generator_profile("Solar", cutout, layout, hexagons)
+    wind_profile = get_generator_profile("Wind", cutout, layout, hexagons)
 
     for demand_center in demand_centers:
         # trucking variables
@@ -258,7 +240,7 @@ if __name__ == "__main__":
         p_battery_capacities = np.zeros(len(pv_profile.hexagon))
         p_h2_storages= np.zeros(len(pv_profile.hexagon))
 
-        hydrogen_quantity = demand_center_list.loc[demand_center,'Annual demand [kg/a]']
+        hydrogen_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
 
         for i in range(len(hexagons)):
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']

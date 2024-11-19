@@ -21,20 +21,12 @@ from functions import CRF, cheapest_trucking_strategy, h2_conversion_stand, chea
 from shapely.geometry import Point
 import shapely.wkt
 import geopy.distance
-import os
+from utils import check_folder_exists
 
-def check_folder_exists(name):
-    """
-    Creates folders if they do not already exist.
-    """
-    if not os.path.exists(name):
-        os.makedirs(name)
-
-def calculate_distance_to_demand(hex_geometry, demand_center_lat, demand_center_lon):
+def calculate_dist_to_demand(hex_geometry, demand_center_lat, demand_center_lon):
     """
     Calculates distance to demand.
 
-    ...
     Parameters
     ----------
     hex_geometry : geodataframe
@@ -63,7 +55,6 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
     """
     Calculates the cost of constructing a road from x to x.
 
-    ...
     Parameters
     ----------
     distance_to_road : float
@@ -97,6 +88,9 @@ def main():
     transport_params_filepath = 'parameters/transport_parameters.xlsx' # SNAKEMAKE INPUT
     pipeline_params_filepath = 'parameters/pipeline_parameters.xlsx' # SNAKEMAKE INPUT
     hexagons_filepath = 'data/hex_final_DJ.geojson'
+    # Comment line above and uncomment line below for re-runs without
+    # complete re-writes
+    # hexagons_filepath = 'results/hex.geojson'
 
 
     infra_data = pd.read_excel(tech_params_filepath,
@@ -150,12 +144,13 @@ def main():
             raise NotImplementedError(f'{demand_state} demand not supported.')
         
         for i in range(len(hexagons)):
-            distance_to_road = hexagons['road_dist'][i]
+            dist_to_road = hexagons['road_dist'][i]
             hex_geometry = hexagons['geometry'][i]
-            dist_to_demand = calculate_distance_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
+            dist_to_demand = calculate_dist_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
 
             #!!! maybe this is the place to set a restriction based on distance to demand center-- for all hexagons with a distance below some cutoff point
             # label demand location under consideration
+            # Different calculations dependent if in demand location or not
             if hex_geometry.contains(demand_location) == True:
                 # Calculate cost of converting hydrogen to a demand state for local demand (i.e. no transport)
                 if demand_state == 'NH3':
@@ -168,7 +163,6 @@ def main():
                                              )[2]/hydrogen_quantity
                     trucking_states[i] = "None"
                     road_construction_costs[i] = 0.
-                    continue
                 else:
                     trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state,
                                              hydrogen_quantity,
@@ -179,67 +173,66 @@ def main():
                                              )[2]/hydrogen_quantity
                     trucking_states[i] = "None"
                     road_construction_costs[i] = 0.
-                    continue
-
-            # determine elec_cost at demand to determine potential energy costs
-            # Calculate cost of constructing a road to each hexagon
-            if needs_road_construction == True:
-                if distance_to_road==0:
-                    road_construction_costs[i] = 0.
-                elif distance_to_road!=0 and distance_to_road<10:
-                    road_construction_costs[i] = \
-                        calculate_road_construction_cost(distance_to_road, 
-                                                         short_road_capex, 
-                                                         infrastructure_interest_rate, 
-                                                         infrastructure_lifetime, 
-                                                         road_opex)
-                else:
-                    road_construction_costs[i] = \
-                        calculate_road_construction_cost(distance_to_road, 
-                                                         long_road_capex, 
-                                                         infrastructure_interest_rate, 
-                                                         infrastructure_lifetime, 
-                                                         road_opex)
-                    
-                trucking_costs[i], trucking_states[i] =\
-                    cheapest_trucking_strategy(demand_state,
-                                                hydrogen_quantity,
-                                                dist_to_demand,
-                                                elec_price,
-                                                heat_price,
-                                                infrastructure_interest_rate,
-                                                conversion_params_filepath,
-                                                transport_params_filepath,
-                                                )
-            elif distance_to_road==0:
-                trucking_costs[i], trucking_states[i] =\
-                    cheapest_trucking_strategy(demand_state,
-                                                hydrogen_quantity,
-                                                dist_to_demand,
-                                                elec_price,
-                                                heat_price,
-                                                infrastructure_interest_rate,
-                                                conversion_params_filepath,
-                                                transport_params_filepath,
-                                                )
-            elif distance_to_road>0: 
-                trucking_costs[i]=trucking_states[i] = np.nan
-
-            # Calculate costs of constructing a pipeline to each hexagon
-            if needs_pipeline_construction== True:
-                pipeline_cost, pipeline_type =\
-                    cheapest_pipeline_strategy(demand_state,
-                                            hydrogen_quantity,
-                                            dist_to_demand,
-                                            elec_price,
-                                            heat_price,
-                                            infrastructure_interest_rate,
-                                            conversion_params_filepath,
-                                            pipeline_params_filepath,
-                                            )
-                pipeline_costs[i] = pipeline_cost
             else:
-                pipeline_costs[i] = np.nan
+                # determine elec_cost at demand to determine potential energy costs
+                # Calculate cost of constructing a road to each hexagon
+                if needs_road_construction == True:
+                    if dist_to_road==0:
+                        road_construction_costs[i] = 0.
+                    elif dist_to_road!=0 and dist_to_road<10:
+                        road_construction_costs[i] = \
+                            calculate_road_construction_cost(dist_to_road, 
+                                                            short_road_capex, 
+                                                            infrastructure_interest_rate, 
+                                                            infrastructure_lifetime, 
+                                                            road_opex)
+                    else:
+                        road_construction_costs[i] = \
+                            calculate_road_construction_cost(dist_to_road, 
+                                                            long_road_capex, 
+                                                            infrastructure_interest_rate, 
+                                                            infrastructure_lifetime, 
+                                                            road_opex)
+                        
+                    trucking_costs[i], trucking_states[i] =\
+                        cheapest_trucking_strategy(demand_state,
+                                                    hydrogen_quantity,
+                                                    dist_to_demand,
+                                                    elec_price,
+                                                    heat_price,
+                                                    infrastructure_interest_rate,
+                                                    conversion_params_filepath,
+                                                    transport_params_filepath,
+                                                    )
+                elif dist_to_road==0:
+                    trucking_costs[i], trucking_states[i] =\
+                        cheapest_trucking_strategy(demand_state,
+                                                    hydrogen_quantity,
+                                                    dist_to_demand,
+                                                    elec_price,
+                                                    heat_price,
+                                                    infrastructure_interest_rate,
+                                                    conversion_params_filepath,
+                                                    transport_params_filepath,
+                                                    )
+                elif dist_to_road>0: 
+                    trucking_costs[i]=trucking_states[i] = np.nan
+
+                # Calculate costs of constructing a pipeline to each hexagon
+                if needs_pipeline_construction== True:
+                    pipeline_cost, pipeline_type =\
+                        cheapest_pipeline_strategy(demand_state,
+                                                hydrogen_quantity,
+                                                dist_to_demand,
+                                                elec_price,
+                                                heat_price,
+                                                infrastructure_interest_rate,
+                                                conversion_params_filepath,
+                                                pipeline_params_filepath,
+                                                )
+                    pipeline_costs[i] = pipeline_cost
+                else:
+                    pipeline_costs[i] = np.nan
 
         # Hexagon file updated with each demand center's costs and states
         hexagons[f'{demand_center} road construction costs'] = road_construction_costs/hydrogen_quantity

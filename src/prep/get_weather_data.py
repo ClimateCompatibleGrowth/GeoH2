@@ -21,6 +21,7 @@ import logging
 import atlite
 import geopandas as gpd
 import os
+from utils import check_folder_exists
 
 def calculate_coords(hexagons):
     """
@@ -48,13 +49,6 @@ def calculate_coords(hexagons):
     max_lon, max_lat = hexagon_bounds[['maxx','maxy']].max()
     
     return min_lon, min_lat, max_lon, max_lat
- 
-def check_folder_exists(name):
-    """
-    Create folders if they do not already exist.
-    """
-    if not os.path.exists(name):
-        os.makedirs(name)
 
 def prepare_cutout(min_lon, min_lat, max_lon, max_lat, start_date, end_date):
     """

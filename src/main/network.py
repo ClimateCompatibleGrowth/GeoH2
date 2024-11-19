@@ -9,7 +9,27 @@ import pypsa
 import warnings
 
 class Network:
+    """
+    A class representing a Network.
+
+    Attributes
+    ----------
+    name : str
+        first name of the person
+    surname : str
+        family name of the person
+    age : int
+        age of the person
+
+    Methods
+    -------
+    info(additional=""):
+        Prints the person's name and age.
+    """
     def __init__(self, type, generators):
+        """
+        
+        """
         self.type = type
         self.generators = generators
         self.n = None
@@ -18,6 +38,7 @@ class Network:
         '''
         Sets up the network.
 
+        ...
         Parameters
         ----------
         demand_profile : pandas DataFrame
@@ -74,7 +95,7 @@ class Network:
             self.n.generators.loc[f'{gen}','capital_cost'] = self.n.generators.loc[f'{gen}','capital_cost']\
                 * CRF(country_series[f'{gen} interest rate'], country_series[f'{gen} lifetime (years)'])
 
-    def _create_override_components():
+    def _create_override_components(self):
         """Set up new component attributes as required"""
         # Modify the capacity of a link so that it can attach to 2 buses.
         override_component_attrs = pypsa.descriptors.Dict(

@@ -111,7 +111,7 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
 def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, interest,
                         conversion_params_filepath):
     '''
-    calculates the annual cost and electricity and heating demand for converting 
+    Calculates the annual cost and electricity and heating demand for converting 
     hydrogen to a given state
 
     Parameters
@@ -275,7 +275,7 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
                                 elec_costs, heat_costs, interest,
                                 conversion_params_filepath, transport_params_filepath):
     '''
-    calculates the lowest-cost state to transport hydrogen by truck
+    Calculates the lowest-cost state to transport hydrogen by truck
 
     Parameters
     ----------
@@ -370,7 +370,7 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
                                 pipeline_params_filepath,
                                 elec_cost_grid = 0.):
     '''
-    calculates the lowest-cost way to transport hydrogen via pipeline
+    Calculates the lowest-cost way to transport hydrogen via pipeline
 
     Parameters
     ----------
@@ -418,7 +418,7 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
 #Only new pipelines
 def pipeline_costs(distance, quantity, elec_cost, pipeline_params_filepath, interest):
     '''
-    calculates the annualized cost of building a pipeline.
+    Calculates the annualized cost of building a pipeline.
 
     Parameters
     ----------
