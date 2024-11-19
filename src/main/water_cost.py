@@ -51,13 +51,14 @@ def main():
                                             * min(waterbody_dist, waterway_dist) 
                                             + electricity_demand_h2o_treatment
                                             * elec_price
-                                            ) * water_demand/1000
+                                        ) * water_demand/1000
+        
         h2o_costs_ocean[i] =(water_spec_cost 
                                 + (water_transport_costs/100)
                                 * ocean_dist
                                 + electricity_demand_ocean_h2o_treatment
                                 * elec_price
-                                ) * water_demand/1000
+                            ) * water_demand/1000
         
         min_h2o_costs[i] = min(h2o_costs_dom_water_bodies[i], h2o_costs_ocean[i])
 

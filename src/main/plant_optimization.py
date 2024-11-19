@@ -212,44 +212,64 @@ if __name__ == "__main__":
     start_date = f'{weather_year}-01-01'
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
-    generators = {"Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
+    generators = { "Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
     hexagons = gpd.read_file('results/completed_hex_DJ.geojson') # SNAKEMAKE INPUT
 
     cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
     layout = cutout.uniform_layout()
+    profiles = []
     
-    pv_profile = get_generator_profile("Solar", cutout, layout, hexagons)
-    wind_profile = get_generator_profile("Wind", cutout, layout, hexagons)
+    for gen in generators.keys():
+         profiles.append(get_generator_profile(gen, cutout, layout, hexagons))
+    
+    times = profiles[0].time
+    # pv_profile = get_generator_profile("Solar", cutout, layout, hexagons)
+    # wind_profile = get_generator_profile("Wind", cutout, layout, hexagons)
 
     for demand_center in demand_centers:
         # trucking variables
-        lcohs_trucking = np.zeros(len(pv_profile.hexagon))
-        t_solar_capacities= np.zeros(len(pv_profile.hexagon))
-        t_wind_capacities= np.zeros(len(pv_profile.hexagon))
-        t_electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
-        t_battery_capacities = np.zeros(len(pv_profile.hexagon))
-        t_h2_storages= np.zeros(len(pv_profile.hexagon))
+        lcohs_trucking = np.zeros(len(hexagons))
+        t_solar_capacities= np.zeros(len(hexagons))
+        t_wind_capacities= np.zeros(len(hexagons))
+        t_electrolyzer_capacities= np.zeros(len(hexagons))
+        t_battery_capacities = np.zeros(len(hexagons))
+        t_h2_storages= np.zeros(len(hexagons))
         
         # pipeline variables
-        lcohs_pipeline = np.zeros(len(pv_profile.hexagon))
-        p_solar_capacities= np.zeros(len(pv_profile.hexagon))
-        p_wind_capacities= np.zeros(len(pv_profile.hexagon))
-        p_electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
-        p_battery_capacities = np.zeros(len(pv_profile.hexagon))
-        p_h2_storages= np.zeros(len(pv_profile.hexagon))
+        lcohs_pipeline = np.zeros(len(hexagons))
+        p_solar_capacities= np.zeros(len(hexagons))
+        p_wind_capacities= np.zeros(len(hexagons))
+        p_electrolyzer_capacities= np.zeros(len(hexagons))
+        p_battery_capacities = np.zeros(len(hexagons))
+        p_h2_storages= np.zeros(len(hexagons))
 
         hydrogen_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
 
         for i in range(len(hexagons)):
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']
-            wind_potential = wind_profile.sel(hexagon = i)
-            pv_potential = pv_profile.sel(hexagon = i)
-            wind_max_capacity = hexagons.loc[i,'theo_turbines']*4
-            pv_max_capacity = hexagons.loc[i,'theo_pv']
-            generators = {
-                    "Wind" : [wind_potential, wind_max_capacity],
-                    "Solar" : [pv_potential, pv_max_capacity]
-                 }
+            gen_index = 0
+            if i > 0:
+                     generators = { "Wind" : [], "Solar" : []}
+            for gen in generators.keys():
+                potential = profiles[gen_index].sel(hexagon = i)
+                if gen == "Wind":
+                    max_capacity = hexagons.loc[i,'theo_turbines']*4
+                elif gen == "Solar":
+                    max_capacity = hexagons.loc[i,'theo_pv']
+
+                generators[gen].append(potential)
+                generators[gen].append(max_capacity)
+                gen_index += 1
+            
+            # print(generators)
+            # wind_potential = wind_profile.sel(hexagon = i)
+            # pv_potential = pv_profile.sel(hexagon = i)
+            # wind_max_capacity = hexagons.loc[i,'theo_turbines']*4
+            # pv_max_capacity = hexagons.loc[i,'theo_pv']
+            # generators = {
+            #         "Wind" : [wind_potential, wind_max_capacity],
+            #         "Solar" : [pv_potential, pv_max_capacity]
+            #      }
             
             trucking_demand_schedule, pipeline_demand_schedule =\
                 get_demand_schedule(hydrogen_quantity,
@@ -262,14 +282,14 @@ if __name__ == "__main__":
             for transport in transport_types:
                 network = Network("Hydrogen", generators)
                 if transport == "trucking":
-                    network.set_network(trucking_demand_schedule, wind_profile.time, country_series)
+                    network.set_network(trucking_demand_schedule, times, country_series)
                     network.set_generators_in_network(country_series)
                     solve_model(network.n, solver)
                     lcohs_trucking[i], generator_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
                     t_solar_capacities[i] = generator_capacities["Solar"]
                     t_wind_capacities[i] = generator_capacities["Wind"]
                 else:
-                    network.set_network(pipeline_demand_schedule, wind_profile.time, country_series)
+                    network.set_network(pipeline_demand_schedule, times, country_series)
                     network.set_generators_in_network(country_series)
                     solve_model(network.n, solver)
                     lcohs_pipeline[i], generator_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
@@ -277,6 +297,9 @@ if __name__ == "__main__":
                     p_wind_capacities[i] = generator_capacities["Wind"]
                 
         # updating trucking hexagons
+        # LOOK HERE
+        for gen in generators:
+             pass
         hexagons[f'{demand_center} trucking solar capacity'] = t_solar_capacities
         hexagons[f'{demand_center} trucking wind capacity'] = t_wind_capacities
         hexagons[f'{demand_center} trucking electrolyzer capacity'] = t_electrolyzer_capacities
