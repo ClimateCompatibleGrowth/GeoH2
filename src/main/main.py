@@ -7,7 +7,8 @@ from shapely.geometry import Point
 from functions import cheapest_trucking_strategy, h2_conversion_stand, cheapest_pipeline_strategy
 from network import Network
 from plant_optimization import get_demand_schedule, get_generator_profile, solve_model, get_results
-from transport_optimization import calculate_road_construction_cost, calculate_dist_to_demand, check_folder_exists
+from transport_optimization import calculate_road_construction_cost, calculate_dist_to_demand
+from utils import check_folder_exists
 
 if __name__ == "__main__":
     # ---------------------------------- Parameters variables ----------------------------------
@@ -35,6 +36,8 @@ if __name__ == "__main__":
     country_params = pd.read_excel(country_params_filepath,
                                         index_col='Country')
     elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
+    
+    len_hexagons = len(hexagons)
     # ------------------------------------------------------------------------------------------
 
     # --------------------------------- Transport-optimization variables -----------------------
@@ -47,9 +50,9 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------
 
     # ---------------------------------------- Water-cost variables ----------------------------------------
-    h2o_costs_dom_water_bodies = np.empty(len(hexagons))
-    h2o_costs_ocean = np.empty(len(hexagons))
-    min_h2o_costs = np.empty(len(hexagons))
+    h2o_costs_dom_water_bodies = np.empty(len_hexagons)
+    h2o_costs_ocean = np.empty(len_hexagons)
+    min_h2o_costs = np.empty(len_hexagons)
 
     electricity_demand_h2o_treatment = water_data['Freshwater treatment electricity demand (kWh/m3)']
     electricity_demand_ocean_h2o_treatment = water_data['Ocean water treatment electricity demand (kWh/m3)']
@@ -67,17 +70,19 @@ if __name__ == "__main__":
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
     generators = {"Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
+    pipeline_construction = True # snakemake config
 
     cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
     layout = cutout.uniform_layout()
-    
-    pv_profile = get_generator_profile("Solar", cutout, layout, hexagons)
-    wind_profile = get_generator_profile("Wind", cutout, layout, hexagons)
+    profiles = []
 
+    for gen in generators.keys():
+         profiles.append(get_generator_profile(gen, cutout, layout, hexagons))
+
+    times = profiles[0].time
     # ------------------------------------------------------------------------------------------------------
 
     check_folder_exists("results")
-
 
     #%% calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
@@ -91,10 +96,10 @@ if __name__ == "__main__":
         demand_state = demand_params.loc[demand_center,'Demand state']
 
         # Storage hexagons for costs calculated in the next for loop
-        road_construction_costs = np.empty(len(hexagons))
-        trucking_states = np.empty(len(hexagons),dtype='<U10')
-        trucking_costs = np.empty(len(hexagons))
-        pipeline_costs = np.empty(len(hexagons))
+        road_construction_costs = np.empty(len_hexagons)
+        trucking_states = np.empty(len_hexagons,dtype='<U10')
+        trucking_costs = np.empty(len_hexagons)
+        pipeline_costs = np.empty(len_hexagons)
 
         # Prices from the country excel file
         heat_price = country_params['Heat price (euros/kWh)'].iloc[0]
@@ -108,25 +113,23 @@ if __name__ == "__main__":
 
         # --------------------------------- Plant-optimization section  part 1 ---------------------------------
         # trucking variables
-        lcohs_trucking = np.zeros(len(pv_profile.hexagon))
-        t_solar_capacities= np.zeros(len(pv_profile.hexagon))
-        t_wind_capacities= np.zeros(len(pv_profile.hexagon))
-        t_electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
-        t_battery_capacities = np.zeros(len(pv_profile.hexagon))
-        t_h2_storages= np.zeros(len(pv_profile.hexagon))
+        lcohs_trucking = np.zeros(len_hexagons)
+        t_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
+        t_electrolyzer_capacities= np.zeros(len_hexagons)
+        t_battery_capacities = np.zeros(len_hexagons)
+        t_h2_storages= np.zeros(len_hexagons)
         
         # pipeline variables
-        lcohs_pipeline = np.zeros(len(pv_profile.hexagon))
-        p_solar_capacities= np.zeros(len(pv_profile.hexagon))
-        p_wind_capacities= np.zeros(len(pv_profile.hexagon))
-        p_electrolyzer_capacities= np.zeros(len(pv_profile.hexagon))
-        p_battery_capacities = np.zeros(len(pv_profile.hexagon))
-        p_h2_storages= np.zeros(len(pv_profile.hexagon))
+        lcohs_pipeline = np.zeros(len_hexagons)
+        p_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
+        p_electrolyzer_capacities= np.zeros(len_hexagons)
+        p_battery_capacities = np.zeros(len_hexagons)
+        p_h2_storages= np.zeros(len_hexagons)
 
         hydrogen_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
 
         # --------------------------------------------------------------------------------------
-        for i in range(len(hexagons)):
+        for i in range(len_hexagons):
             # ------------------------------ Transport-optimization section part 2 ------------------------------
             distance_to_road = hexagons['road_dist'][i]
             hex_geometry = hexagons['geometry'][i]
@@ -222,14 +225,19 @@ if __name__ == "__main__":
 
             # --------------------------------- Plant-optimization section  part 2 ---------------------------------
             trucking_state = trucking_states[i]
-            wind_potential = wind_profile.sel(hexagon = i)
-            pv_potential = pv_profile.sel(hexagon = i)
-            wind_max_capacity = hexagons.loc[i,'theo_turbines']*4
-            pv_max_capacity = hexagons.loc[i,'theo_pv']
-            generators = {
-                    "Wind" : [wind_potential, wind_max_capacity],
-                    "Solar" : [pv_potential, pv_max_capacity]
-                 }
+            gen_index = 0
+            if i > 0:
+                generators = { "Wind" : [], "Solar" : []} # snakemake config
+            for gen in generators.keys():
+                potential = profiles[gen_index].sel(hexagon = i)
+                if gen == "Wind":
+                    max_capacity = hexagons.loc[i,'theo_turbines']*4
+                elif gen == "Solar":
+                    max_capacity = hexagons.loc[i,'theo_pv']
+
+                generators[gen].append(potential)
+                generators[gen].append(max_capacity)
+                gen_index += 1
             
             trucking_demand_schedule, pipeline_demand_schedule =\
                 get_demand_schedule(hydrogen_quantity,
@@ -242,19 +250,23 @@ if __name__ == "__main__":
             for transport in transport_types:
                 network = Network("Hydrogen", generators)
                 if transport == "trucking":
-                    network.set_network(trucking_demand_schedule, wind_profile.time, country_series)
+                    network.set_network(trucking_demand_schedule, times, country_series)
                     network.set_generators_in_network(country_series)
                     solve_model(network.n, solver)
-                    lcohs_trucking[i], generator_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
-                    t_solar_capacities[i] = generator_capacities["Solar"]
-                    t_wind_capacities[i] = generator_capacities["Wind"]
+                    lcohs_trucking[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
+                    for gen, capacity in generators_capacities.items():
+                        t_generators_capacities[gen].append(capacity)
+                elif pipeline_construction == True:
+                    network.set_network(pipeline_demand_schedule, times, country_series)
+                    network.set_generators_in_network(country_series)
+                    solve_model(network.n, solver)
+                    lcohs_pipeline[i], generators_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
+                    for gen, capacity in generators_capacities.items():
+                        p_generators_capacities[gen].append(capacity)
                 else:
-                    network.set_network(pipeline_demand_schedule, wind_profile.time, country_series)
-                    network.set_generators_in_network(country_series)
-                    solve_model(network.n, solver)
-                    lcohs_pipeline[i], generator_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
-                    p_solar_capacities[i] = generator_capacities["Solar"]
-                    p_wind_capacities[i] = generator_capacities["Wind"]
+                    lcohs_pipeline[i], p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = np.nan
+                    for gen in p_generators_capacities.keys():
+                        p_generators_capacities[gen].append(np.nan)
             # --------------------------------------------------------------------------------------
             # --------------------------- Water-cost section ---------------------------
             # Water cost for each hexagon for each kg hydrogen produced
@@ -291,8 +303,8 @@ if __name__ == "__main__":
 
         # ---------------------------- Updating transport-optimization section ----------------------------
         # updating trucking hexagons
-        hexagons[f'{demand_center} trucking solar capacity'] = t_solar_capacities
-        hexagons[f'{demand_center} trucking wind capacity'] = t_wind_capacities
+        for gen, capacities in t_generators_capacities.items():
+            hexagons[f'{demand_center} trucking {gen.lower()} capacity'] = capacities
         hexagons[f'{demand_center} trucking electrolyzer capacity'] = t_electrolyzer_capacities
         hexagons[f'{demand_center} trucking battery capacity'] = t_battery_capacities
         hexagons[f'{demand_center} trucking H2 storage capacity'] = t_h2_storages
@@ -300,8 +312,8 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} trucking production cost'] = lcohs_trucking            
 
         # updating pipeline hexagons
-        hexagons[f'{demand_center} pipeline solar capacity'] = p_solar_capacities
-        hexagons[f'{demand_center} pipeline wind capacity'] = p_wind_capacities
+        for gen, capacities in p_generators_capacities.items():
+            hexagons[f'{demand_center} pipeline {gen.lower()} capacity'] = capacities
         hexagons[f'{demand_center} pipeline electrolyzer capacity'] = p_electrolyzer_capacities
         hexagons[f'{demand_center} pipeline battery capacity'] = p_battery_capacities
         hexagons[f'{demand_center} pipeline H2 storage capacity'] = p_h2_storages
@@ -328,7 +340,7 @@ if __name__ == "__main__":
                         hexagons['Lowest water cost']
 
                         
-        for i in range(len(hexagons)):
+        for i in range(len_hexagons):
             hexagons.loc[i, f'{demand_center} lowest cost'] = np.nanmin(
                                     [hexagons.loc[i, f'{demand_center} trucking total cost'],
                                     hexagons.loc[i, f'{demand_center} pipeline total cost']

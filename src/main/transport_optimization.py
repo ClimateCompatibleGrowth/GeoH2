@@ -30,11 +30,11 @@ def calculate_dist_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
     Parameters
     ----------
     hex_geometry : geodataframe
-        Parameter1 description
+        ...
     demand_center_lat : 
-
+        ...
     demand_center_lon : 
-
+        ...
     
     Returns
     -------
@@ -58,15 +58,15 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
     Parameters
     ----------
     distance_to_road : float
-        
+        ...
     road_capex : 
-
+        ...
     infrastructure_interest_rate : 
-    
+        ...
     infrastructure_lifetime_years :
-
+        ...
     road_opex :
-
+        ...
     
     Returns
     -------

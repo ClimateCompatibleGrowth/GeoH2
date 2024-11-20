@@ -85,6 +85,7 @@ def get_generator_profile(generator, cutout, layout, hexagons):
         ...
     hexagons :
         ...
+    
     Returns
     -------
     profile : 
@@ -113,7 +114,7 @@ def solve_model(n, solver):
     Parameters
     ----------
     n : 
-        network
+        network.
     solver : string
         name of solver to be used.
     '''
@@ -151,10 +152,14 @@ def get_results(n, demand_profile, generators, water_limit=None):
 
     Parameters
     ----------
+    n : 
+        network
     demand_profile : pandas DataFrame
         hourly dataframe of hydrogen demand in kg.
     generators : list
         contains types of generators that this plant uses.
+    water_limit : float
+        annual limit on water available for electrolysis in hexagon, in cubic meters. Default is None.
 
     Returns
     -------
@@ -213,43 +218,41 @@ if __name__ == "__main__":
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
     generators = { "Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
-    hexagons = gpd.read_file('results/completed_hex_DJ.geojson') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file('results/hex.geojson') # SNAKEMAKE INPUT
+    pipeline_construction = True # snakemake config
 
     cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
     layout = cutout.uniform_layout()
     profiles = []
+    len_hexagons = len(hexagons)
     
     for gen in generators.keys():
          profiles.append(get_generator_profile(gen, cutout, layout, hexagons))
     
     times = profiles[0].time
-    # pv_profile = get_generator_profile("Solar", cutout, layout, hexagons)
-    # wind_profile = get_generator_profile("Wind", cutout, layout, hexagons)
 
     for demand_center in demand_centers:
         # trucking variables
-        lcohs_trucking = np.zeros(len(hexagons))
-        t_solar_capacities= np.zeros(len(hexagons))
-        t_wind_capacities= np.zeros(len(hexagons))
-        t_electrolyzer_capacities= np.zeros(len(hexagons))
-        t_battery_capacities = np.zeros(len(hexagons))
-        t_h2_storages= np.zeros(len(hexagons))
+        lcohs_trucking = np.zeros(len_hexagons)
+        t_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
+        t_electrolyzer_capacities= np.zeros(len_hexagons)
+        t_battery_capacities = np.zeros(len_hexagons)
+        t_h2_storages= np.zeros(len_hexagons)
         
         # pipeline variables
-        lcohs_pipeline = np.zeros(len(hexagons))
-        p_solar_capacities= np.zeros(len(hexagons))
-        p_wind_capacities= np.zeros(len(hexagons))
-        p_electrolyzer_capacities= np.zeros(len(hexagons))
-        p_battery_capacities = np.zeros(len(hexagons))
-        p_h2_storages= np.zeros(len(hexagons))
+        lcohs_pipeline = np.zeros(len_hexagons)
+        p_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
+        p_electrolyzer_capacities= np.zeros(len_hexagons)
+        p_battery_capacities = np.zeros(len_hexagons)
+        p_h2_storages= np.zeros(len_hexagons)
 
         hydrogen_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
 
-        for i in range(len(hexagons)):
+        for i in range(len_hexagons):
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']
             gen_index = 0
             if i > 0:
-                     generators = { "Wind" : [], "Solar" : []}
+                generators = { "Wind" : [], "Solar" : []} # snakemake config
             for gen in generators.keys():
                 potential = profiles[gen_index].sel(hexagon = i)
                 if gen == "Wind":
@@ -260,16 +263,6 @@ if __name__ == "__main__":
                 generators[gen].append(potential)
                 generators[gen].append(max_capacity)
                 gen_index += 1
-            
-            # print(generators)
-            # wind_potential = wind_profile.sel(hexagon = i)
-            # pv_potential = pv_profile.sel(hexagon = i)
-            # wind_max_capacity = hexagons.loc[i,'theo_turbines']*4
-            # pv_max_capacity = hexagons.loc[i,'theo_pv']
-            # generators = {
-            #         "Wind" : [wind_potential, wind_max_capacity],
-            #         "Solar" : [pv_potential, pv_max_capacity]
-            #      }
             
             trucking_demand_schedule, pipeline_demand_schedule =\
                 get_demand_schedule(hydrogen_quantity,
@@ -285,23 +278,24 @@ if __name__ == "__main__":
                     network.set_network(trucking_demand_schedule, times, country_series)
                     network.set_generators_in_network(country_series)
                     solve_model(network.n, solver)
-                    lcohs_trucking[i], generator_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
-                    t_solar_capacities[i] = generator_capacities["Solar"]
-                    t_wind_capacities[i] = generator_capacities["Wind"]
-                else:
+                    lcohs_trucking[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
+                    for gen, capacity in generators_capacities.items():
+                        t_generators_capacities[gen].append(capacity)
+                elif pipeline_construction == True:
                     network.set_network(pipeline_demand_schedule, times, country_series)
                     network.set_generators_in_network(country_series)
                     solve_model(network.n, solver)
-                    lcohs_pipeline[i], generator_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
-                    p_solar_capacities[i] = generator_capacities["Solar"]
-                    p_wind_capacities[i] = generator_capacities["Wind"]
+                    lcohs_pipeline[i], generators_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
+                    for gen, capacity in generators_capacities.items():
+                        p_generators_capacities[gen].append(capacity)
+                else:
+                    lcohs_pipeline[i], p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = np.nan
+                    for gen in p_generators_capacities.keys():
+                        p_generators_capacities[gen].append(np.nan)
                 
         # updating trucking hexagons
-        # LOOK HERE
-        for gen in generators:
-             pass
-        hexagons[f'{demand_center} trucking solar capacity'] = t_solar_capacities
-        hexagons[f'{demand_center} trucking wind capacity'] = t_wind_capacities
+        for gen, capacities in t_generators_capacities.items():
+            hexagons[f'{demand_center} trucking {gen.lower()} capacity'] = capacities
         hexagons[f'{demand_center} trucking electrolyzer capacity'] = t_electrolyzer_capacities
         hexagons[f'{demand_center} trucking battery capacity'] = t_battery_capacities
         hexagons[f'{demand_center} trucking H2 storage capacity'] = t_h2_storages
@@ -309,8 +303,8 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} trucking production cost'] = lcohs_trucking            
 
         # updating pipeline hexagons
-        hexagons[f'{demand_center} pipeline solar capacity'] = p_solar_capacities
-        hexagons[f'{demand_center} pipeline wind capacity'] = p_wind_capacities
+        for gen, capacities in p_generators_capacities.items():
+            hexagons[f'{demand_center} pipeline {gen.lower()} capacity'] = capacities
         hexagons[f'{demand_center} pipeline electrolyzer capacity'] = p_electrolyzer_capacities
         hexagons[f'{demand_center} pipeline battery capacity'] = p_battery_capacities
         hexagons[f'{demand_center} pipeline H2 storage capacity'] = p_h2_storages
