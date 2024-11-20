@@ -218,7 +218,7 @@ if __name__ == "__main__":
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
     generators = { "Wind" : [], "Solar" : []} # already in the config as list, used in map_costs.py line 268
-    hexagons = gpd.read_file('results/hex.geojson') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file('resources/hex_transport_DJ.geojson') # SNAKEMAKE INPUT
     pipeline_construction = True # snakemake config
 
     cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
@@ -312,4 +312,4 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} pipeline production cost'] = lcohs_pipeline
 
 
-    hexagons.to_file("results/hex.geojson", driver='GeoJSON', encoding='utf-8')
+    hexagons.to_file('resources/hex_lcoh_DJ.geojson', driver='GeoJSON', encoding='utf-8')

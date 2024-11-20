@@ -115,7 +115,7 @@ def main():
 
     hexagons = gpd.read_file(hexagons_filepath)
 
-    check_folder_exists("results")
+    check_folder_exists("resources")
     
     #%% calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
@@ -240,7 +240,7 @@ def main():
         hexagons[f'{demand_center} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
         hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
 
-    hexagons.to_file('results/hex.geojson', driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
+    hexagons.to_file('resources/hex_transport_DJ.geojson', driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
 
 if __name__ == "__main__":
     main()

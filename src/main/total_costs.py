@@ -15,14 +15,17 @@ Bring together all previous data to calculate lowest-cost hydrogen
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from utils import check_folder_exists
 
 def main():
-    hexagons = gpd.read_file('results/hex.geojson') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file('resources/hex_water_DJ.geojson') # SNAKEMAKE INPUT
     demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
     demand_center_list = pd.read_excel(demand_params_filepath,
                                     index_col='Demand center',
                                     )
     demand_centers = demand_center_list.index
+
+    check_folder_exists("resources")
 
     for demand_center in demand_centers:
         hexagons[f'{demand_center} trucking total cost'] =\
@@ -42,7 +45,7 @@ def main():
                                     hexagons.loc[i, f'{demand_center} pipeline total cost']
                                     ])
             
-    hexagons.to_file("results/hex.geojson", driver='GeoJSON', encoding='utf-8')
+    hexagons.to_file("results/hex_total_cost_DJ_2022.geojson", driver='GeoJSON', encoding='utf-8')
 
 if __name__ == "__main__":
     main()
