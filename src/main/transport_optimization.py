@@ -30,11 +30,11 @@ def calculate_dist_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
     Parameters
     ----------
     hex_geometry : geodataframe
-        ...
+        A specific hexagon geometry pulled from the full hexagon GeoJSON file
     demand_center_lat : 
-        ...
+        Latitude of the demand centre
     demand_center_lon : 
-        ...
+        Longitude of the demand centre
     
     Returns
     -------
@@ -53,20 +53,20 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
                                      infrastructure_interest_rate, 
                                      infrastructure_lifetime_years, road_opex):
     """
-    Calculates the cost of constructing a road from x to x.
+    Calculates the cost of constructing a road from a hexagon to the nearest road.
 
     Parameters
     ----------
     distance_to_road : float
-        ...
+        Distance from the hexagon to the nearest road in km.
     road_capex : 
-        ...
+        Cost to construct road (per unit?)
     infrastructure_interest_rate : 
-        ...
+        Interest rate on infrastructure costs
     infrastructure_lifetime_years :
-        ...
+        Lifetime in years of the constructed infrastructure
     road_opex :
-        ...
+        Operating costs of the road (per unit?)
     
     Returns
     -------
@@ -117,7 +117,7 @@ def main():
 
     check_folder_exists("resources")
     
-    #%% calculate cost of hydrogen state conversion and transportation for demand
+    # calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
     for demand_center in demand_centers:
         # Demand location based variables

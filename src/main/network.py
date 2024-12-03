@@ -9,7 +9,7 @@ class Network:
     Attributes
     ----------
     type : string
-        type of fuel demand.
+        type of fuel demand. - maybe plant type instead of fuel type
     generators : dictionary
         contains generator types with their potential and maximum capacity.
     n :
@@ -59,11 +59,10 @@ class Network:
             self.n.add('Load',
                 'Hydrogen demand',
                 bus = 'Hydrogen',
-                p_set = demand_profile['Demand']/1000*39.4,
+                p_set = demand_profile['Demand']/1000*39.4,  # Should clean up these parameters or at least comment re units
+                       # we probably want to make HHV an input in the end via snakemake or a file so this can be generalised
                 )
 
-            # need to discuss with Alycia, like what is this doing?
-            # does this need it's own function? as it is different for ammonia
             for item in [self.n.links, self.n.stores, self.n.storage_units]:
                 item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
         elif self.type == "Ammonia":
@@ -85,13 +84,14 @@ class Network:
             self.n.generators_t.p_max_pu[f'{gen}'] = gen_list[0]
 
             # specify maximum capacity based on land use
-            self.n.generators.loc[f'{gen}','p_nom_max'] = gen_list[1]
+            self.n.generators.loc[f'{gen}','p_nom_max'] = gen_list[1] # same as above
 
             # specify technology-specific and country-specific WACC and lifetime here
             self.n.generators.loc[f'{gen}','capital_cost'] = self.n.generators.loc[f'{gen}','capital_cost']\
                 * CRF(country_series[f'{gen} interest rate'], country_series[f'{gen} lifetime (years)'])
 
     def _create_override_components(self):
+        # I assume this is just so that we can have hydrogen and power both as buses? Hmm
         """Set up new component attributes as required"""
         # Modify the capacity of a link so that it can attach to 2 buses.
         override_component_attrs = pypsa.descriptors.Dict(

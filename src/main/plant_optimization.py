@@ -42,6 +42,7 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
         hourly demand profile for pipeline transport.
     '''
     # schedule for pipeline
+    # Should "freq" be a snakemake input somehow? So the user can define the resolution of the whole run?
     index = pd.date_range(start_date, end_date, freq = 'H')
     pipeline_hourly_quantity = quantity/index.size
     pipeline_hourly_demand_schedule = pd.DataFrame(pipeline_hourly_quantity, index=index,  columns = ['Demand'])
@@ -49,11 +50,15 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
     # if demand center is in hexagon
     if transport_state=="None":
         # schedule for trucking
-        annual_deliveries = 365*24
+        annual_deliveries = 365*24 # This is just the number of hours in a year? Why is this "annual deliveries"?
+        # Is it just because this is where there is no transport so it creates an even profile?
+        # I think we need to add a comment to explain anyway.
         trucking_hourly_demand = quantity/annual_deliveries
         index = pd.date_range(start_date, end_date, periods=annual_deliveries)
         trucking_demand_schedule = pd.DataFrame(trucking_hourly_demand, index=index, columns = ['Demand'])
+        # Could we add some comment to explain why this is still called "trucking" schedule despite no trucking happening?
         trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
+    # We need to catch the nan case - None is where the deamand is on-site, nan is where there is no road access and no construction so hexagon is infeasible for trucking.
     else:
         transport_params = pd.read_excel(transport_params_filepath,
                                             sheet_name = transport_state,
@@ -73,25 +78,30 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
 
 def get_generator_profile(generator, cutout, layout, hexagons):
     '''
-    Sets the profile of the specified generator in the cutout.
+    Determines the generation profile of the specified generator in the cutout based on weather data.
 
     Parameters
     ----------
     generator : string
-        ...
+        The name of the generator type to be used (i.e., "Solar" for pv, "Wind" for wind turbines)
     cutout : 
-        ...
+        A spatial and temporal subset of ERA-5 weather data consisting of grid cells
+        https://atlite.readthedocs.io/en/latest/introduction.html
     layout : 
-        ...
+        The capacity to be built in each of the grid_cells.
+        https://atlite.readthedocs.io/en/master/ref_api.html
     hexagons :
-        ...
+        Hexagon GeoJSON file.
     
     Returns
     -------
     profile : 
-        ...
+        A profile where weather data has been converted into a generation time-series.
+        https://atlite.readthedocs.io/en/master/ref_api.html
     '''
     if generator == "Solar":
+        # The panel string should be in the config file as well in case people want to change that in the prep and main.
+        # Alycia to double-check that the CSi is 1MW
         profile = cutout.pv(panel= 'CSi',
                             orientation='latitude_optimal',
                             layout = layout,
@@ -99,6 +109,7 @@ def get_generator_profile(generator, cutout, layout, hexagons):
                             per_unit = True)
         profile = profile.rename(dict(dim_0='hexagon'))
     elif generator == "Wind":
+        # This string is what we should need to put in the config file (turbine) for both data prep, replacing the constant 4, replacing here.
         profile = cutout.wind(turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
                             layout = layout,
                             shapes = hexagons,
@@ -142,13 +153,13 @@ def _get_water_constraint(demand_profile, water_limit):
     # total hydrogen demand in kg
     total_hydrogen_demand = demand_profile['Demand'].sum()
     # check if hydrogen demand can be met based on hexagon water availability
-    water_constraint =  total_hydrogen_demand <= water_limit * 111.57 # kg H2 per cubic meter of water
+    water_constraint =  total_hydrogen_demand <= water_limit * 111.57 # kg H2 per cubic meter of water - should probably justify or ref this somewhere?
     
     return water_constraint
 
 def get_results(n, demand_profile, generators, water_limit=None):
     '''
-    Calculates the water constraint.
+    Get final results from network optimisation
 
     Parameters
     ----------
@@ -185,15 +196,16 @@ def get_results(n, demand_profile, generators, water_limit=None):
                     electrolyzer_capacity = np.nan
                     battery_capacity = np.nan
                     h2_storage = np.nan
+                    return lcoh, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
+        # If water_constraint == True, it just means you have enough water so you can go on as normal
 
-    if water_limit == None :
-        lcoh = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
-        for generator in generators:
-                generator_capacities[generator] = n.generators.p_nom_opt[f"{generator}"]
-        electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
-        battery_capacity = n.storage_units.p_nom_opt['Battery']
-        h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
-
+    # If there isn't a water limit or if there is but we have enough water:
+    lcoh = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
+    for generator in generators:
+            generator_capacities[generator] = n.generators.p_nom_opt[f"{generator}"]
+    electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
+    battery_capacity = n.storage_units.p_nom_opt['Battery']
+    h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
     return lcoh, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
 
 
@@ -240,6 +252,7 @@ if __name__ == "__main__":
         t_h2_storages= np.zeros(len_hexagons)
         
         # pipeline variables
+        # Evnetual generalisation of LCOH could be just LC for levelised cost?
         lcohs_pipeline = np.zeros(len_hexagons)
         p_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
         p_electrolyzer_capacities= np.zeros(len_hexagons)

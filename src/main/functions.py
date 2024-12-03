@@ -71,12 +71,15 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
     trailor_lifetime = transport_params['Trailer lifetime (a)']
     loading_unloading_time = transport_params['Loading unloading time (h)']
 
-
+    # Calculate deliveries needed per day
     amount_deliveries_needed = daily_quantity/net_capacity
+    # Calculate how many deliveries each truck can do per day
     deliveries_per_truck = working_hours/(loading_unloading_time +
                                           (2 * distance/average_truck_speed))
+    # Deliveries per day / Deliveries per truck = Trucks per day
     trailors_needed = round((amount_deliveries_needed/
                              deliveries_per_truck) + 0.5)
+    # Not sure what the 0.5 is about? Comment that in so people know it's a round-up
     total_drives_day = round(amount_deliveries_needed + 0.5) # not in ammonia calculation
     if transport_state == 'NH3':
         trucks_needed = trailors_needed
@@ -84,13 +87,15 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
         trucks_needed = max(round((total_drives_day * 2 * distance *
                                         working_days/max_driving_dist) + 0.5),
                                             trailors_needed)
-
+    # Get the capex of all the trucks and trailors needed
     capex_trucks = trucks_needed * spec_capex_truck
     capex_trailor = trailors_needed * spec_capex_trailor
+    # Get fuel costs and wages
     if amount_deliveries_needed < 1:
+        # I don't know what the 365/100 is here either...
+        # Any constants that never change and can be hard-coded to have comments explaining
         fuel_costs = (amount_deliveries_needed * 2 *
                         distance * 365/100) * diesel_consumption * diesel_price # what does the 365/100 signify???
-        
         wages = amount_deliveries_needed * ((distance/average_truck_speed) *
                     2 + loading_unloading_time) * working_days * costs_for_driver
     else:
@@ -99,7 +104,7 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
         wages = round(amount_deliveries_needed + 0.5) * (
                     (distance/average_truck_speed) * 2 + loading_unloading_time
                     ) * working_days * costs_for_driver
-
+    # Get total annual costs including capex, fuel costs, wages
     annual_costs = (capex_trucks * CRF(interest, truck_lifetime) + capex_trailor *
                         CRF(interest, trailor_lifetime)) +\
                             capex_trucks * spec_opex_truck + capex_trailor *\
@@ -110,6 +115,7 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
 
 def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, interest,
                         conversion_params_filepath):
+    # Leader to go through and add comments
     '''
     Calculates the annual cost and electricity and heating demand for converting 
     hydrogen to a given state
@@ -152,7 +158,8 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
                                              sheet_name = final_state,
                                              index_col = 'Parameter'
                                              ).squeeze('columns')
-    
+    # Should this and subsequent states be indented in under the else? So we don't waste time on standard condition?
+    # Ask Leander to comment on eveything in this function
     if final_state == '500 bar':
         cp = conversion_params['Heat capacity']
         tein = conversion_params['Input temperature (K)']
@@ -163,11 +170,12 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         compressor_lifetime = conversion_params['Compressor lifetime (a)']
         capex_coef = conversion_params['Compressor capex coefficient (euros per kilograms H2 per day)']
         opex_compressor = conversion_params['Compressor opex (% capex)']
-
+        # I don't know what the 500 means - we should probably just assign that to a variable that's named
+        # I can look up what it is but like for readability
         elec_demand_per_kg_h2 = (cp * tein * (((500/pein)**((k - 1)/k)) - 1))/n_isentrop
         elec_demand = elec_demand_per_kg_h2 * quantity
         heat_demand = 0 
-
+        # I don't know what the 0.6038 is, same as above
         capex_compressor = capex_coef * ((daily_throughput)**0.6038)
 
         annual_costs = (capex_compressor * CRF(interest, compressor_lifetime)) +\
@@ -185,6 +193,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         
         heat_demand = 0
         elec_demand = electricity_unit_demand * quantity
+        # Maybe we should put some comments in referring to equations documented somewhere ... hmm
         capex_liquid_plant = capex_quadratic_coef * (daily_throughput**2) +\
                                 capex_linear_coef * daily_throughput +\
                                     capex_constant
@@ -237,7 +246,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
         capex_coefficient = conversion_params['Capex coefficient (euros per annual g H2)']
         opex_NH3_plant = conversion_params['Opex (% of capex)']
-        NH3_plant_lifetime =conversion_params['Plant lifetime (a)']
+        NH3_plant_lifetime = conversion_params['Plant lifetime (a)']
         
         
         elec_demand = electricity_unit_demand * quantity
@@ -259,6 +268,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
         elec_demand = electricity_unit_demand * quantity
         heat_demand = heat_unit_demand * quantity
 
+        # Again - I have no idea what those factors are... 365 days/year, 24 hours/day, but why 1000 and 0.7451?
         capex_NH3_plant = capex_coefficient * ((quantity/1000/365/24) ** 0.7451)    
 
         annual_costs = capex_NH3_plant *\
@@ -274,6 +284,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
 def cheapest_trucking_strategy(final_state, quantity, distance, 
                                 elec_costs, heat_costs, interest,
                                 conversion_params_filepath, transport_params_filepath):
+    # Ask Leander to add comments here
     '''
     Calculates the lowest-cost state to transport hydrogen by truck
 
@@ -305,6 +316,8 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
 
     '''
 
+    # I am confused by this entire function to be honest. Struggling to follow the logic
+    # Different between _load and _unload is fuzzy
     if final_state == '500 bar':
         dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                 trucking_costs('500 bar', distance, quantity, interest, transport_params_filepath)
@@ -319,8 +332,9 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
     
     if final_state == 'LH2':
         dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('LH2',distance, quantity,interest,transport_params_filepath) 
+                trucking_costs('LH2',distance, quantity,interest,transport_params_filepath)
     elif final_state == 'NH3':
+        # Should these ones be LH2 LH@ in first two lines???
         dist_costs_lh2 = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                 trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
@@ -401,7 +415,7 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
         the lowest-cost state in which to transport hydrogen by truck.
 
     '''
-
+    # I'm not gonna lie I don't really get the _load, standard, and _unload things
     if final_state == 'NH3':
         dist_costs_pipeline = pipeline_costs(distance,quantity, elec_cost_grid, pipeline_params_filepath, interest)[0] +\
                 h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]  
@@ -454,6 +468,7 @@ def pipeline_costs(distance, quantity, elec_cost, pipeline_params_filepath, inte
     med_max_capacity = all_parameters['Medium pipeline max capacity (GW)']
     sml_max_capacity = all_parameters['Small pipeline max capcity (GW)']
 
+    # What is the 10^6 and 33.333??
     large_max_throughput = (((large_max_capacity * (10**6))/33.333)) * 8760 * availability
     med_max_throughput = (((med_max_capacity * (10**6))/33.333)) * 8760 * availability
     sml_max_throughput = (((sml_max_capacity * (10**6))/33.333)) * 8760 * availability

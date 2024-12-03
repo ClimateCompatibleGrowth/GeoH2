@@ -19,14 +19,10 @@ def main():
     tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
     country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
 
-    water_data = pd.read_excel(tech_params_filepath,
-                                sheet_name='Water',
-                                index_col='Parameter'
-                                ).squeeze("columns")
-    country_params = pd.read_excel(country_params_filepath,
-                                        index_col='Country')
+    water_data = pd.read_excel(tech_params_filepath, sheet_name='Water', index_col='Parameter').squeeze("columns")
+    country_params = pd.read_excel(country_params_filepath, index_col='Country')
 
-    #%% water cost for each hexagon for each kg hydrogen produced
+    # Water cost for each hexagon for each kg hydrogen produced
 
     # Water cost related variables
     h2o_costs_dom_water_bodies = np.empty(len(hexagons))
