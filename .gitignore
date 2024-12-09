@@ -3,7 +3,7 @@ cutouts/
 data/*
 resources/
 results/
-rlots/
+plots/
 **/.DS_Store
 .DS_Store
 temp/
