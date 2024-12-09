@@ -14,6 +14,51 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from utils import check_folder_exists
 
+def plot_and_save(crs, column, legend_kwds, title, figsize=(10,5), legend=True, cmap='viridis_r', 
+             missing_kwds={"color": "lightgrey", "label": "Missing values",},
+             bbox_inches="tight",
+             ):
+    """
+    Plots into a figure and saves figure into a file.
+
+    Parameters
+    ----------
+    crs : 
+        ...
+    column : string
+        name of column to use.
+    legend_kwds : 
+        ...
+    title : string
+        name of axes.
+    figsize : tuple
+        size of figure. Default is (10,5)
+    legend : boolean
+        ...
+    cmap : string
+        ...
+    missing_kwds : dictionary
+        ...
+    bbox_inches : string
+        ...
+    """
+    fig = plt.figure(figsize=figsize)
+    ax = plt.axes(projection=crs)
+    ax.set_axis_off()
+
+    hexagons.to_crs(crs.proj4_init).plot(
+        ax=ax,
+        column = column,
+        legend = legend,
+        cmap = cmap,
+        legend_kwds = legend_kwds,
+        missing_kwds = missing_kwds,
+    )
+
+    ax.set_title(title)
+    fig.savefig(output_folder + f"/{title}.png", bbox_inches=bbox_inches)
+    plt.close()
+
 hexagons = gpd.read_file("results/hex_cost_components_DJ_2022.geojson")
 demand_excel_path = 'parameters/demand_parameters.xlsx'
 demand_parameters = pd.read_excel(demand_excel_path,index_col='Demand center')
@@ -37,321 +82,81 @@ check_folder_exists(output_folder)
 
 for demand_center in demand_centers:
     # plot lowest LCOH in each location
-    fig = plt.figure(figsize=(10,5))
+    plot_and_save(crs, f'{demand_center} lowest cost', 
+                  {'label':'LCOH [euros/kg]'}, 
+                  f'{demand_center} LCOH')
 
-    ax = plt.axes(projection=crs)
-    ax.set_axis_off()
-
-    hexagons.to_crs(crs.proj4_init).plot(
-        ax=ax,
-        column = f'{demand_center} lowest cost',
-        legend = True,
-        cmap = 'viridis_r',
-        legend_kwds={'label':'LCOH [euros/kg]'},
-        missing_kwds={
-            "color": "lightgrey",
-            "label": "Missing values",
-        },
-    )
-    ax.set_title(f'{demand_center} LCOH')
-    fig.savefig(output_folder + f'/{demand_center} LCOH.png', bbox_inches='tight')
-    plt.close()
     
     for transport_method in transport_methods:
-        fig = plt.figure(figsize=(10,5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column = f'{demand_center} {transport_method} production cost',
-            legend = True,
-            cmap = 'viridis_r',
-            legend_kwds={'label':'Production LCOH [euros/kg]'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} production cost')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} production cost.png', bbox_inches='tight')
-        plt.close()
+        plot_and_save(crs, f'{demand_center} {transport_method} production cost',
+                      {'label':'Production LCOH [euros/kg]'},
+                      f'{demand_center} {transport_method} production cost')
 
         #%% plot transportation costs
-        fig = plt.figure(figsize=(10,5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
         hexagons[f'{demand_center} total {transport_method} cost'] =\
             hexagons[f'{demand_center} {transport_method} transport and conversion costs']+hexagons[f'{demand_center} road construction costs']
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column = f'{demand_center} total {transport_method} cost',
-            legend = True,
-            cmap = 'viridis_r',
-            legend_kwds={'label':'{transport_method} cost [euros/kg]'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} transport costs')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} transport cost.png', 
-                    bbox_inches='tight')
-        plt.close()
+
+        plot_and_save(crs, f'{demand_center} total {transport_method} cost', 
+                      {'label':'{transport_method} cost [euros/kg]'},
+                      f'{demand_center} {transport_method} transport costs')
 
         # %% plot total costs
-    
-        fig = plt.figure(figsize=(10,5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column = f'{demand_center} {transport_method} total cost',
-            legend = True,
-            cmap = 'viridis_r',
-            legend_kwds={'label':'LCOH [euros/kg]'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} LCOH')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} LCOH.png', 
-                    bbox_inches='tight')
-        plt.close()
+        plot_and_save(crs, f'{demand_center} {transport_method} total cost',
+                      {'label':'LCOH [euros/kg]'},
+                      f'{demand_center} {transport_method} LCOH')
 
         # Electrolyzer capacity
+        plot_and_save(crs, f'{demand_center} {transport_method} electrolyzer capacity',
+                      {'label': 'Size (MW)'} ,
+                      f'{demand_center} {transport_method} electrolyzer capacity')
     
-        fig = plt.figure(figsize=(10, 5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column=f'{demand_center} {transport_method} electrolyzer capacity',
-            legend=True,
-            cmap='viridis_r',
-            legend_kwds={'label': 'Size (MW)'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} electrolyzer capacity')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} electrolyzer capacity.png',
-                    bbox_inches='tight')
-        plt.close()
-    
-        
         # Electrolyzer costs
-    
-        fig = plt.figure(figsize=(10, 5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column=f'{demand_center} {transport_method} electrolyzer costs',
-            legend=True,
-            cmap='viridis_r',
-            legend_kwds={'label': '$'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} electrolyzer costs')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} electrolyzer costs.png',
-                    bbox_inches='tight')
-        plt.close()
+        plot_and_save(crs, f'{demand_center} {transport_method} electrolyzer costs',
+                      {'label': '$'},
+                      f'{demand_center} {transport_method} electrolyzer costs')
 
         # H2 storage capacity
-    
-        fig = plt.figure(figsize=(10, 5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column=f'{demand_center} {transport_method} H2 storage capacity',
-            legend=True,
-            cmap='viridis_r',
-            legend_kwds={'label': 'Size (MW)'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} H2 storage capacity')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} H2 storage capacity.png', 
-                    bbox_inches='tight')
-        plt.close()
+        plot_and_save(crs, f'{demand_center} {transport_method} H2 storage capacity',
+                      {'label': 'Size (MW)'},
+                      f'{demand_center} {transport_method} H2 storage capacity')
     
         # H2 storage costs
-    
-        fig = plt.figure(figsize=(10, 5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column=f'{demand_center} {transport_method} H2 storage costs',
-            legend=True,
-            cmap='viridis_r',
-            legend_kwds={'label': '$'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} H2 storage costs')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} H2 storage costs.png', 
-                    bbox_inches='tight')
-        plt.close()
-
+        plot_and_save(crs, f'{demand_center} {transport_method} H2 storage costs',
+                      {'label': '$'},
+                      f'{demand_center} {transport_method} H2 storage costs')
+        
         # Battery capcity
-    
-        fig = plt.figure(figsize=(10, 5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column=f'{demand_center} {transport_method} battery capacity',
-            legend=True,
-            cmap='viridis_r',
-            legend_kwds={'label': 'Size (MW)'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} battery capacity')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} battery capacity.png',
-                    bbox_inches='tight')
-        plt.close()
+        plot_and_save(crs, f'{demand_center} {transport_method} battery capacity', 
+                      {'label': 'Size (MW)'}, 
+                      f'{demand_center} {transport_method} battery capacity')
     
         # battery costs
-    
-        fig = plt.figure(figsize=(10, 5))
-    
-        ax = plt.axes(projection=crs)
-        ax.set_axis_off()
-    
-        hexagons.to_crs(crs.proj4_init).plot(
-            ax=ax,
-            column=f'{demand_center} {transport_method} battery costs',
-            legend=True,
-            cmap='viridis_r',
-            legend_kwds={'label': '$'},
-            missing_kwds={
-                "color": "lightgrey",
-                "label": "Missing values",
-            },
-        )
-        ax.set_title(f'{demand_center} {transport_method} battery costs')
-        fig.savefig(output_folder + f'/{demand_center} {transport_method} battery costs.png',
-                    bbox_inches='tight')
-        plt.close()
-        
+        plot_and_save(crs, f'{demand_center} {transport_method} battery costs',
+                      {'label': '$'},
+                      f'{demand_center} {transport_method} battery costs')
+
         for generator in generators:
             # generator capacity
             generator = generator.lower()
-            fig = plt.figure(figsize=(10, 5))
-        
-            ax = plt.axes(projection=crs)
-            ax.set_axis_off()
-        
-            hexagons.to_crs(crs.proj4_init).plot(
-                ax=ax,
-                column=f'{demand_center} {transport_method} {generator} capacity',
-                legend=True,
-                cmap='viridis_r',
-                legend_kwds={'label': 'Capacity (MW)'},
-                missing_kwds={
-                    "color": "lightgrey",
-                    "label": "Missing values",
-                },
-            )
-            ax.set_title(f'{demand_center} {transport_method} {generator} capacity')
-            fig.savefig(output_folder + f'/{demand_center} {transport_method} {generator} capacity.png', 
-                        bbox_inches='tight')
-            plt.close()
+    
+            plot_and_save(crs, f'{demand_center} {transport_method} {generator} capacity',
+                          {'label': 'Capacity (MW)'},
+                          f'{demand_center} {transport_method} {generator} capacity')
     
             # generator costs
-        
-            fig = plt.figure(figsize=(10, 5))
-        
-            ax = plt.axes(projection=crs)
-            ax.set_axis_off()
-        
-            hexagons.to_crs(crs.proj4_init).plot(
-                ax=ax,
-                column=f'{demand_center} {transport_method} {generator} costs',
-                legend=True,
-                cmap='viridis_r',
-                legend_kwds={'label': '$'}, #!!! correct label?
-                missing_kwds={
-                    "color": "lightgrey",
-                    "label": "Missing values",
-                },
-            )
-            ax.set_title(f'{demand_center} {transport_method} {generator} costs ')
-            fig.savefig(output_folder + f'/{demand_center} {transport_method} {generator} costs.png', 
-                        bbox_inches='tight')
-            plt.close()
+            plot_and_save(crs, f'{demand_center} {transport_method} {generator} costs',
+                          {'label': '$'},
+                          f'{demand_center} {transport_method} {generator} costs ')
     
 # %% plot water costs
+plot_and_save(crs, 'Ocean water costs',
+              {'label':'Water cost [euros/kg H2]'},
+              'Ocean water costs')
 
-fig = plt.figure(figsize=(10,5))
-
-ax = plt.axes(projection=crs)
-ax.set_axis_off()
-
-hexagons.to_crs(crs.proj4_init).plot(
-    ax=ax,
-    column = 'Ocean water costs',
-    legend = True,
-    cmap = 'viridis_r',
-    legend_kwds={'label':'Water cost [euros/kg H2]'},
-    missing_kwds={
-        "color": "lightgrey",
-        "label": "Missing values",
-    },
-)
 plt.ticklabel_format(style='plain')
-ax.set_title('Ocean water costs')
-fig.savefig(output_folder +'/Ocean water costs.png', bbox_inches='tight')
-plt.close()
 
-fig = plt.figure(figsize=(10,5))
+plot_and_save(crs, 'Freshwater costs',
+              {'label':'Water cost [euros/kg H2]'},
+              'Freshwater costs')
 
-ax = plt.axes(projection=crs)
-ax.set_axis_off()
-
-hexagons.to_crs(crs.proj4_init).plot(
-    ax=ax,
-    column = 'Freshwater costs',
-    legend = True,
-    cmap = 'viridis_r',
-    legend_kwds={'label':'Water cost [euros/kg H2]'},
-    missing_kwds={
-        "color": "lightgrey",
-        "label": "Missing values",
-    },
-)
 plt.ticklabel_format(style='plain') 
-ax.set_title('Freshwater costs')
-fig.savefig(output_folder +'/Freshwater costs.png', bbox_inches='tight')
-plt.close()

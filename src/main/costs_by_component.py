@@ -17,7 +17,7 @@ from functions import CRF
 
 # Load hexagons
 hexagons = gpd.read_file("results/hex_total_cost_DJ_2022.geojson") # snakemake config
-generators = ["Solar", "Wind"] # snakemake config
+generators = ["Solar", "Wind"] # snakemake config (maybe call it below using .keys()/.items(), and so on)
 
 # Load necessary parameters
 demand_excel_path = 'parameters/demand_parameters.xlsx' # snakemake config
@@ -47,39 +47,37 @@ for demand_center in demand_centers:
     location = geolocator.reverse(coordinates, language="en")
     country = location.raw['properties']['country']
     
-    # Get CRF and then cost for each component using the data for the country you are looking at
-    for transport_method in transport_methods:
-        # Battery 
-        interest_battery = country_parameters.loc[country, 'Plant interest rate']
-        lifetime_battery = country_parameters.loc[country, 'Plant lifetime (years)']
-        crf_battery = CRF(interest_battery, lifetime_battery)
+    # Store CRF from plant data
+    interest_plant = country_parameters.loc[country, 'Plant interest rate']
+    lifetime_plant = country_parameters.loc[country, 'Plant lifetime (years)']
+    crf_plant = CRF(interest_plant, lifetime_plant)
+    
+    for transport_method in transport_methods:  
+        # Work out the cost for each component using the data for the country you are looking at
+        # Battery
         capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} battery costs'] = \
-            hexagons[f'{demand_center} {transport_method} battery capacity'] * capital_cost_battery * crf_battery
+            hexagons[f'{demand_center} {transport_method} battery capacity'] * capital_cost_battery * crf_plant
         hexagons[f'{demand_center} LCOH - {transport_method} battery costs portion'] = \
             hexagons[f'{demand_center} {transport_method} battery costs'] \
                 / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
         
         # Electrolyzer
-        interest_electrolyzer = country_parameters.loc[country, 'Plant interest rate']
-        lifetime_electrolyzer = country_parameters.loc[country, 'Plant lifetime (years)']
-        crf_electrolyzer = CRF(interest_electrolyzer, lifetime_electrolyzer)
         capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} electrolyzer costs'] = \
-            hexagons[f'{demand_center} {transport_method} electrolyzer capacity'] * capital_cost_electrolyzer * crf_electrolyzer
+            hexagons[f'{demand_center} {transport_method} electrolyzer capacity'] * capital_cost_electrolyzer * crf_plant
         hexagons[f'{demand_center} LCOH - {transport_method} electrolyzer portion'] = \
             hexagons[f'{demand_center} {transport_method} electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
  
         # H2 Storage
-        interest_h2_storage = country_parameters.loc[country, 'Plant interest rate']
-        lifetime_h2_storage = country_parameters.loc[country, 'Plant lifetime (years)']
-        crf_h2_storage = CRF(interest_h2_storage, lifetime_h2_storage)
         capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} H2 storage costs'] = \
-            hexagons[f'{demand_center} {transport_method} H2 storage capacity'] * capital_cost_h2_storage * crf_h2_storage
+            hexagons[f'{demand_center} {transport_method} H2 storage capacity'] * capital_cost_h2_storage * crf_plant
         hexagons[f'{demand_center} LCOH - {transport_method} H2 storage portion'] = \
             hexagons[f'{demand_center} {transport_method} H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
-       
+        
+        # Work out CRF, then work out the cost for each generator using the data for the country you are looking at
+        # Generators
         for generator in generators:
             generator_lower = generator.lower()
             interest_generator = country_parameters.loc[country, f'{generator} interest rate']
