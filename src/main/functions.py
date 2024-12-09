@@ -77,6 +77,7 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
     deliveries_per_truck = working_hours/(loading_unloading_time +
                                           (2 * distance/average_truck_speed))
     # Deliveries per day / Deliveries per truck = Trucks per day
+    # The 0.5 is put in place in order to round up so full demand is met
     trailors_needed = round((amount_deliveries_needed/
                              deliveries_per_truck) + 0.5)
     # Not sure what the 0.5 is about? Comment that in so people know it's a round-up
@@ -92,10 +93,10 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
     capex_trailor = trailors_needed * spec_capex_trailor
     # Get fuel costs and wages
     if amount_deliveries_needed < 1:
-        # I don't know what the 365/100 is here either...
-        # Any constants that never change and can be hard-coded to have comments explaining
+        # In the lines below, 365 refers to  days to spread it over the year
+        # and 100 is there because diesel_consumption is in liters/100km
         fuel_costs = (amount_deliveries_needed * 2 *
-                        distance * 365/100) * diesel_consumption * diesel_price # what does the 365/100 signify???
+                        distance * 365/100) * diesel_consumption * diesel_price
         wages = amount_deliveries_needed * ((distance/average_truck_speed) *
                     2 + loading_unloading_time) * working_days * costs_for_driver
     else:
@@ -204,6 +205,7 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
                                     heat_demand * heat_costs
         
     elif final_state == 'LOHC_load':
+        # In this conversion you "load" the hydrogen molecule to a carrier liquid.
         electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
         heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
         capex_coef = conversion_params['Capex coefficient (euros per kilograms H2 per year)']
@@ -468,7 +470,7 @@ def pipeline_costs(distance, quantity, elec_cost, pipeline_params_filepath, inte
     med_max_capacity = all_parameters['Medium pipeline max capacity (GW)']
     sml_max_capacity = all_parameters['Small pipeline max capcity (GW)']
 
-    # What is the 10^6 and 33.333??
+    # 33.333 (kWh/kg) is the energy density of hydrogen, 8760 are hours are in the year.
     large_max_throughput = (((large_max_capacity * (10**6))/33.333)) * 8760 * availability
     med_max_throughput = (((med_max_capacity * (10**6))/33.333)) * 8760 * availability
     sml_max_throughput = (((sml_max_capacity * (10**6))/33.333)) * 8760 * availability
