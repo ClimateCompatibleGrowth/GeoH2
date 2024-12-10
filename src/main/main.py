@@ -29,7 +29,6 @@ if __name__ == "__main__":
     elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
 
     len_hexagons = len(hexagons)
-    # I feel like the end-block line isn't needed? Since it's always followed by the start of the next block.
 
     # --------------------------------- Transport-optimization variables -----------------------
     needs_pipeline_construction = True # CONFIG YAML
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     water_transport_costs = water_data['Water transport cost (euros/100 km/m3)']
     water_spec_cost = water_data['Water specific cost (euros/m3)']
     water_demand = water_data['Water demand  (L/kg H2)']
-    count = 0
+    demand_case_count = 0
 
     # ------------------------------------ Plant-optimization variables ------------------------------------
     country_series = country_params.iloc[0]
@@ -93,7 +92,7 @@ if __name__ == "__main__":
         trucking_costs = np.empty(len_hexagons)
         pipeline_costs = np.empty(len_hexagons)
 
-        # Does this need to be inside the demand centre loop? Or could they move out?
+        # Does this need to be inside the demand centre loop? Or could they move out? YES - has been moved out in its separate file
         # Get prices from the country excel file
         heat_price = country_params['Heat price (euros/kWh)'].iloc[0]
         plant_interest_rate = country_params['Plant interest rate'].iloc[0]
@@ -145,7 +144,6 @@ if __name__ == "__main__":
                                              )[2]/hydrogen_quantity
                     trucking_states[i] = "None"
                     road_construction_costs[i] = 0.
-                    continue
                 else:
                     trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state,
                                              hydrogen_quantity,
@@ -156,7 +154,6 @@ if __name__ == "__main__":
                                              )[2]/hydrogen_quantity
                     trucking_states[i] = "None"
                     road_construction_costs[i] = 0.
-                    continue
 
             # Otherwise, if the hexagon does not contain the demand center
             # This structure is already in the transport file - move it identically over here.
@@ -208,24 +205,24 @@ if __name__ == "__main__":
                                                         )
                     # And if road construction is not allowed and distance to road is > 0, trucking states are nan.
                     # Sam to confirm whether assigning nan will cause future issues in code.
-                    if distance_to_road>0:
+                    elif distance_to_road>0:
                         trucking_costs[i]=trucking_states[i] = np.nan
 
-            # Calculate costs of constructing a pipeline to the hexagon if allowed
-            if needs_pipeline_construction== True:
-                pipeline_cost, pipeline_type =\
-                    cheapest_pipeline_strategy(demand_state,
-                                            hydrogen_quantity,
-                                            dist_to_demand,
-                                            elec_price,
-                                            heat_price,
-                                            infrastructure_interest_rate,
-                                            conversion_params_filepath,
-                                            pipeline_params_filepath,
-                                            )
-                pipeline_costs[i] = pipeline_cost
-            else:
-                pipeline_costs[i] = np.nan
+                # Calculate costs of constructing a pipeline to the hexagon if allowed
+                if needs_pipeline_construction== True:
+                    pipeline_cost, pipeline_type =\
+                        cheapest_pipeline_strategy(demand_state,
+                                                hydrogen_quantity,
+                                                dist_to_demand,
+                                                elec_price,
+                                                heat_price,
+                                                infrastructure_interest_rate,
+                                                conversion_params_filepath,
+                                                pipeline_params_filepath,
+                                                )
+                    pipeline_costs[i] = pipeline_cost
+                else:
+                    pipeline_costs[i] = np.nan
 
             # --------------------------------- Plant-optimization section  part 2 ---------------------------------
             trucking_state = trucking_states[i]
@@ -300,11 +297,8 @@ if __name__ == "__main__":
 
             # --------------------------- Water-cost section ---------------------------
             # Water cost for each hexagon for each kg hydrogen produced
-            # Variable name "count" isn't really descriptive enough - I don't know what that means without digging
-            # Why are we only calculating water costs for the 0 hexagon? I'm confused.
-            # Ahhh wait is it that it will be the same water cost irrespective of demand? If so let's label that
-            # "demand_case_count" and add a comment so people know why here.
-            if count == 0:
+            # Water cost is worked out once for each hexagon
+            if demand_case_count == 0:
                 waterbody_dist = hexagons['waterbody_dist'][i]
                 waterway_dist = hexagons['waterway_dist'][i]
                 ocean_dist = hexagons['ocean_dist'][i]
@@ -324,7 +318,7 @@ if __name__ == "__main__":
                 
                 min_h2o_costs[i] = min(h2o_costs_dom_water_bodies[i], h2o_costs_ocean[i])
 
-        count+=1
+        demand_case_count+=1
         # ---------------------------- Updating hexagon with transport results ----------------------------
         
         # Updating hexagon file updated with each demand center's costs and states

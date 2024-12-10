@@ -25,8 +25,9 @@ def main():
                                     )
     demand_centers = demand_center_list.index
 
-    check_folder_exists("resources")
+    check_folder_exists("results")
 
+    # Get lowest cost for each transport type
     for demand_center in demand_centers:
         hexagons[f'{demand_center} trucking total cost'] =\
             hexagons[f'{demand_center} road construction costs'] +\
@@ -38,7 +39,7 @@ def main():
                     hexagons[f'{demand_center} pipeline production cost'] +\
                         hexagons['Lowest water cost']
 
-                        
+        # Get the lowest between the trucking and the pipeline options
         for i in range(len(hexagons)):
             hexagons.loc[i, f'{demand_center} lowest cost'] = np.nanmin(
                                     [hexagons.loc[i, f'{demand_center} trucking total cost'],

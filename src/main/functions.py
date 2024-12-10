@@ -77,10 +77,9 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
     deliveries_per_truck = working_hours/(loading_unloading_time +
                                           (2 * distance/average_truck_speed))
     # Deliveries per day / Deliveries per truck = Trucks per day
-    # The 0.5 is put in place in order to round up so full demand is met
+    # In the lines below, the 0.5 is put in place in order to round up so full demand is met
     trailors_needed = round((amount_deliveries_needed/
                              deliveries_per_truck) + 0.5)
-    # Not sure what the 0.5 is about? Comment that in so people know it's a round-up
     total_drives_day = round(amount_deliveries_needed + 0.5) # not in ammonia calculation
     if transport_state == 'NH3':
         trucks_needed = trailors_needed
@@ -116,7 +115,7 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
 
 def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, interest,
                         conversion_params_filepath):
-    # Leader to go through and add comments
+    # Leader to go through and add comments to further explain the uses of load and unload and standard condition
     '''
     Calculates the annual cost and electricity and heating demand for converting 
     hydrogen to a given state
@@ -159,134 +158,142 @@ def h2_conversion_stand(final_state, quantity, electricity_costs, heat_costs, in
                                              sheet_name = final_state,
                                              index_col = 'Parameter'
                                              ).squeeze('columns')
-    # Should this and subsequent states be indented in under the else? So we don't waste time on standard condition?
-    # Ask Leander to comment on eveything in this function
-    if final_state == '500 bar':
-        cp = conversion_params['Heat capacity']
-        tein = conversion_params['Input temperature (K)']
-        pein = conversion_params['Input pressure (bar)']
-        k = conversion_params['Isentropic exponent']
-        n_isentrop = conversion_params['Isentropic efficiency']
-                    
-        compressor_lifetime = conversion_params['Compressor lifetime (a)']
-        capex_coef = conversion_params['Compressor capex coefficient (euros per kilograms H2 per day)']
-        opex_compressor = conversion_params['Compressor opex (% capex)']
-        # I don't know what the 500 means - we should probably just assign that to a variable that's named
-        # I can look up what it is but like for readability
-        elec_demand_per_kg_h2 = (cp * tein * (((500/pein)**((k - 1)/k)) - 1))/n_isentrop
-        elec_demand = elec_demand_per_kg_h2 * quantity
-        heat_demand = 0 
-        # I don't know what the 0.6038 is, same as above
-        capex_compressor = capex_coef * ((daily_throughput)**0.6038)
+        
+        if final_state == '500 bar':
+            cp = conversion_params['Heat capacity']
+            tein = conversion_params['Input temperature (K)']
+            pein = conversion_params['Input pressure (bar)']
+            k = conversion_params['Isentropic exponent']
+            n_isentrop = conversion_params['Isentropic efficiency']
+                        
+            compressor_lifetime = conversion_params['Compressor lifetime (a)']
+            capex_coef = conversion_params['Compressor capex coefficient (euros per kilograms H2 per day)']
+            opex_compressor = conversion_params['Compressor opex (% capex)']
+            # I don't know what the 500 means - we should probably just assign that to a variable that's named
+            # I can look up what it is but like for readability
+            # Can Leander suggest a comment to add here to reference the below formula/source?
+            elec_demand_per_kg_h2 = (cp * tein * (((500/pein)**((k - 1)/k)) - 1))/n_isentrop
+            elec_demand = elec_demand_per_kg_h2 * quantity
+            heat_demand = 0 
+            # I don't know what the 0.6038 is, same as above
+            # Can Leander suggest a comment to add here to reference the below formula/source?
+            capex_compressor = capex_coef * ((daily_throughput)**0.6038)
 
-        annual_costs = (capex_compressor * CRF(interest, compressor_lifetime)) +\
-                            (capex_compressor * opex_compressor) +\
-                                elec_demand * electricity_costs +\
-                                    heat_demand * heat_costs
-        
-    elif final_state == 'LH2':
-        electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
-        capex_quadratic_coef = conversion_params['Capex quadratic coefficient (euros (kg H2)-2)']
-        capex_linear_coef = conversion_params['Capex linear coefficient (euros per kg H2)']
-        capex_constant = conversion_params['Capex constant (euros)']
-        opex_liquid_plant = conversion_params['Opex (% of capex)']
-        liquid_plant_lifetime = conversion_params['Plant lifetime (a)']
-        
-        heat_demand = 0
-        elec_demand = electricity_unit_demand * quantity
-        # Maybe we should put some comments in referring to equations documented somewhere ... hmm
-        capex_liquid_plant = capex_quadratic_coef * (daily_throughput**2) +\
-                                capex_linear_coef * daily_throughput +\
-                                    capex_constant
-
-        annual_costs = (capex_liquid_plant * CRF(interest, liquid_plant_lifetime)) +\
-                            (capex_liquid_plant * opex_liquid_plant) +\
-                                elec_demand * electricity_costs +\
-                                    heat_demand * heat_costs
-        
-    elif final_state == 'LOHC_load':
-        # In this conversion you "load" the hydrogen molecule to a carrier liquid.
-        electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
-        heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
-        capex_coef = conversion_params['Capex coefficient (euros per kilograms H2 per year)']
-        opex_hydrogenation = conversion_params['Opex (% of capex)']
-        hydrogenation_lifetime = conversion_params['Hydrogenation lifetime (a)']
-        costs_carrier = conversion_params['Carrier costs (euros per kg carrier)']
-        ratio_carrier = conversion_params['Carrier ratio (kg carrier: kg hydrogen)']
-        
-        elec_demand = electricity_unit_demand * quantity 
-        heat_demand = heat_unit_demand * quantity              
-        capex_hydrogenation = capex_coef * quantity
-
-        # why are daily carrier costs included in net present value calculation?
-        annual_costs = (capex_hydrogenation + costs_carrier *
-                            ratio_carrier * daily_throughput) *\
-                                CRF(interest, hydrogenation_lifetime) +\
-                                    capex_hydrogenation * opex_hydrogenation +\
-                                        elec_demand * electricity_costs +\
-                                            heat_demand * heat_costs
-        
-    elif final_state == 'LOHC_unload':
-        electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
-        heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
-        capex_coef = conversion_params['Capex coefficient (euros per kilograms H2 per year)']
-        opex_dehydrogenation = conversion_params['Opex (% of capex)']
-        dehydrogenation_lifetime = conversion_params['Hydrogenation lifetime (a)']
-        
-        elec_demand = electricity_unit_demand * quantity 
-        heat_demand = heat_unit_demand * quantity
-        capex_dehydrogenation = capex_coef * quantity
-        
-        annual_costs = (capex_dehydrogenation *
-                            CRF(interest, dehydrogenation_lifetime)) +\
-                                (capex_dehydrogenation * opex_dehydrogenation) +\
+            # Leander: please add comment here to explain below
+            annual_costs = (capex_compressor * CRF(interest, compressor_lifetime)) +\
+                                (capex_compressor * opex_compressor) +\
                                     elec_demand * electricity_costs +\
                                         heat_demand * heat_costs
-        
-    elif final_state == 'NH3_load':
-        electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
-        heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
-        capex_coefficient = conversion_params['Capex coefficient (euros per annual g H2)']
-        opex_NH3_plant = conversion_params['Opex (% of capex)']
-        NH3_plant_lifetime = conversion_params['Plant lifetime (a)']
-        
-        
-        elec_demand = electricity_unit_demand * quantity
-        heat_demand = heat_unit_demand * quantity
-        capex_NH3_plant = capex_coefficient * quantity
+            
+        elif final_state == 'LH2':
+            electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
+            capex_quadratic_coef = conversion_params['Capex quadratic coefficient (euros (kg H2)-2)']
+            capex_linear_coef = conversion_params['Capex linear coefficient (euros per kg H2)']
+            capex_constant = conversion_params['Capex constant (euros)']
+            opex_liquid_plant = conversion_params['Opex (% of capex)']
+            liquid_plant_lifetime = conversion_params['Plant lifetime (a)']
+            
+            heat_demand = 0
+            elec_demand = electricity_unit_demand * quantity
+            # Maybe we should put some comments in referring to equations documented somewhere ... hmm
+            capex_liquid_plant = capex_quadratic_coef * (daily_throughput**2) +\
+                                    capex_linear_coef * daily_throughput +\
+                                        capex_constant
 
-        annual_costs = capex_NH3_plant * CRF(interest, NH3_plant_lifetime) +\
-                            capex_NH3_plant * opex_NH3_plant +\
-                                elec_demand * electricity_costs +\
-                                    heat_demand * heat_costs
-        
-    elif final_state == 'NH3_unload':
-        electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
-        heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
-        capex_coefficient = conversion_params['Capex coefficient (euros per hourly g H2)']
-        opex_NH3_plant = conversion_params['Opex (% of capex)']
-        NH3_plant_lifetime = conversion_params['Plant lifetime (a)']
-        
-        elec_demand = electricity_unit_demand * quantity
-        heat_demand = heat_unit_demand * quantity
+            # Leander: please add comment here to explain below
+            annual_costs = (capex_liquid_plant * CRF(interest, liquid_plant_lifetime)) +\
+                                (capex_liquid_plant * opex_liquid_plant) +\
+                                    elec_demand * electricity_costs +\
+                                        heat_demand * heat_costs
+            
+        elif final_state == 'LOHC_load':
+            # In this conversion you "load" the hydrogen molecule to a carrier liquid.
+            electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
+            heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
+            capex_coef = conversion_params['Capex coefficient (euros per kilograms H2 per year)']
+            opex_hydrogenation = conversion_params['Opex (% of capex)']
+            hydrogenation_lifetime = conversion_params['Hydrogenation lifetime (a)']
+            costs_carrier = conversion_params['Carrier costs (euros per kg carrier)']
+            ratio_carrier = conversion_params['Carrier ratio (kg carrier: kg hydrogen)']
+            
+            elec_demand = electricity_unit_demand * quantity 
+            heat_demand = heat_unit_demand * quantity              
+            capex_hydrogenation = capex_coef * quantity
 
-        # Again - I have no idea what those factors are... 365 days/year, 24 hours/day, but why 1000 and 0.7451?
-        capex_NH3_plant = capex_coefficient * ((quantity/1000/365/24) ** 0.7451)    
+            # why are daily carrier costs included in net present value calculation?
+            # Leander: please add comment here to explain below
+            annual_costs = (capex_hydrogenation + costs_carrier *
+                                ratio_carrier * daily_throughput) *\
+                                    CRF(interest, hydrogenation_lifetime) +\
+                                        capex_hydrogenation * opex_hydrogenation +\
+                                            elec_demand * electricity_costs +\
+                                                heat_demand * heat_costs
+            
+        elif final_state == 'LOHC_unload':
+            electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
+            heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
+            capex_coef = conversion_params['Capex coefficient (euros per kilograms H2 per year)']
+            opex_dehydrogenation = conversion_params['Opex (% of capex)']
+            dehydrogenation_lifetime = conversion_params['Hydrogenation lifetime (a)']
+            
+            elec_demand = electricity_unit_demand * quantity 
+            heat_demand = heat_unit_demand * quantity
+            capex_dehydrogenation = capex_coef * quantity
+            
+            # Leander: please add comment here to explain below
+            annual_costs = (capex_dehydrogenation *
+                                CRF(interest, dehydrogenation_lifetime)) +\
+                                    (capex_dehydrogenation * opex_dehydrogenation) +\
+                                        elec_demand * electricity_costs +\
+                                            heat_demand * heat_costs
+            
+        elif final_state == 'NH3_load':
+            electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
+            heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
+            capex_coefficient = conversion_params['Capex coefficient (euros per annual g H2)']
+            opex_NH3_plant = conversion_params['Opex (% of capex)']
+            NH3_plant_lifetime = conversion_params['Plant lifetime (a)']
+            
+            
+            elec_demand = electricity_unit_demand * quantity
+            heat_demand = heat_unit_demand * quantity
+            capex_NH3_plant = capex_coefficient * quantity
 
-        annual_costs = capex_NH3_plant *\
-                            CRF(interest, NH3_plant_lifetime) +\
+            # Leander: please add comment here to explain below
+            annual_costs = capex_NH3_plant * CRF(interest, NH3_plant_lifetime) +\
                                 capex_NH3_plant * opex_NH3_plant +\
                                     elec_demand * electricity_costs +\
                                         heat_demand * heat_costs
-    else:
-        raise NotImplementedError(f'Conversion costs for {final_state} not currently supported.')
-    
+            
+        elif final_state == 'NH3_unload':
+            electricity_unit_demand = conversion_params['Electricity demand (kWh per kg H2)']
+            heat_unit_demand = conversion_params['Heat demand (kWh per kg H2)']
+            capex_coefficient = conversion_params['Capex coefficient (euros per hourly g H2)']
+            opex_NH3_plant = conversion_params['Opex (% of capex)']
+            NH3_plant_lifetime = conversion_params['Plant lifetime (a)']
+            
+            elec_demand = electricity_unit_demand * quantity
+            heat_demand = heat_unit_demand * quantity
+
+            # Again - I have no idea what those factors are... 365 days/year, 24 hours/day, but why 1000 and 0.7451?
+            # Can Leander suggest a comment to add here to reference the below formula/source?
+            capex_NH3_plant = capex_coefficient * ((quantity/1000/365/24) ** 0.7451)    
+
+            # Leander: please add comment here to explain below
+            annual_costs = capex_NH3_plant *\
+                                CRF(interest, NH3_plant_lifetime) +\
+                                    capex_NH3_plant * opex_NH3_plant +\
+                                        elec_demand * electricity_costs +\
+                                            heat_demand * heat_costs
+        else:
+            raise NotImplementedError(f'Conversion costs for {final_state} not currently supported.')
+        
     return elec_demand, heat_demand, annual_costs
 
 def cheapest_trucking_strategy(final_state, quantity, distance, 
                                 elec_costs, heat_costs, interest,
                                 conversion_params_filepath, transport_params_filepath):
-    # Ask Leander to add comments here
+    # Leader to go through and add comments
     '''
     Calculates the lowest-cost state to transport hydrogen by truck
 
@@ -336,7 +343,7 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
         dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                 trucking_costs('LH2',distance, quantity,interest,transport_params_filepath)
     elif final_state == 'NH3':
-        # Should these ones be LH2 LH@ in first two lines???
+        # Should these ones be LH2 in first two lines???
         dist_costs_lh2 = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                 trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
@@ -385,6 +392,7 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
                                 conversion_params_filepath,
                                 pipeline_params_filepath,
                                 elec_cost_grid = 0.):
+    # Leader to go through and add comments
     '''
     Calculates the lowest-cost way to transport hydrogen via pipeline
 
@@ -417,7 +425,6 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
         the lowest-cost state in which to transport hydrogen by truck.
 
     '''
-    # I'm not gonna lie I don't really get the _load, standard, and _unload things
     if final_state == 'NH3':
         dist_costs_pipeline = pipeline_costs(distance,quantity, elec_cost_grid, pipeline_params_filepath, interest)[0] +\
                 h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]  
@@ -431,7 +438,7 @@ def cheapest_pipeline_strategy(final_state, quantity, distance,
     return costs_per_unit, cheapest_option
 
 
-#Only new pipelines
+# Only new pipelines
 def pipeline_costs(distance, quantity, elec_cost, pipeline_params_filepath, interest):
     '''
     Calculates the annualized cost of building a pipeline.

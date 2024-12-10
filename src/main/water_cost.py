@@ -15,14 +15,14 @@ import pandas as pd
 import numpy as np
 
 def main():
-    hexagons = gpd.read_file('resources/hex_lcoh_DJ.geojson') # SNAKEMAKE INPUT
+    hexagons = gpd.read_file('resources/hex_lc_DJ.geojson') # SNAKEMAKE INPUT
     tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
     country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
 
     water_data = pd.read_excel(tech_params_filepath, sheet_name='Water', index_col='Parameter').squeeze("columns")
     country_params = pd.read_excel(country_params_filepath, index_col='Country')
 
-    # Water cost for each hexagon for each kg hydrogen produced
+    # Water cost for each hexagon for each kg product produced
 
     # Water cost related variables
     h2o_costs_dom_water_bodies = np.empty(len(hexagons))
@@ -36,6 +36,7 @@ def main():
     water_demand = water_data['Water demand  (L/kg H2)']
     elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
     
+    # Loop through all hexagons
     # Calculating water costs for each hexagon
     for i in range(len(hexagons)):
         waterbody_dist = hexagons['waterbody_dist'][i]
