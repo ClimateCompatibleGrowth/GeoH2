@@ -64,11 +64,31 @@ class Network:
                 )
 
             for item in [self.n.links, self.n.stores, self.n.storage_units]:
-                item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],country_series['Plant lifetime (years)'])
+                item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'], 
+                                                            country_series['Plant lifetime (years)'])
         elif self.type == "Ammonia":
-            print("Ammonia")
-        elif self.type == "Something else":
-            print("Something else")
+            # Set the time values for the network
+            self.n.set_snapshots(demand_profile.index)
+            demand_profile['weights'] = 8760 / len(self.n.snapshots)
+            self.n.snapshot_weightings = demand_profile['weights']
+
+            # Import the design of the NH3 plant into the network
+            self.n.import_from_csv_folder("parameters/basic_nh3_plant")
+
+            # Import demand profile
+            # Note: All flows are in MW or MWh, conversions for hydrogen done using HHVs. Hydrogen HHV = 39.4 MWh/t
+            # Note: All flows are in MW or MWh, conversions for ammonia done using HHVs. Ammonia HHV = 6.25 MWh/t
+            # hydrogen_demand = pd.read_excel(demand_path,index_col = 0) # Excel file in kg hydrogen, convert to MWh
+            self.n.add('Load',
+                'Ammonia demand',
+                bus='Ammonia',
+                p_set=demand_profile['Demand'].to_numpy() / 1000 * 6.25,
+                )
+            
+            for item in [self.n.links, self.n.stores]:
+                item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'],
+                                                            country_series['Plant lifetime (years)'])
+                self.n.links.loc['HydrogenCompression', 'marginal_cost'] = 0.0001  # Just stops pointless cycling through storage
 
     def set_generators_in_network(self, country_series):
         '''

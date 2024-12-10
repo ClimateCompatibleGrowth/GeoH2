@@ -24,18 +24,23 @@ def main():
                                     index_col='Demand center',
                                     )
     demand_centers = demand_center_list.index
+    plant_type = "Hydrogen" # config file
 
     check_folder_exists("results")
+    if plant_type == "Hydrogen":
+        trucking_costs = hexagons[f'{demand_center} trucking transport and conversion costs']
+    elif plant_type == "Ammonia":
+        trucking_costs = hexagons[f'{demand_center} trucking transport costs']
 
     # Get lowest cost for each transport type
     for demand_center in demand_centers:
         hexagons[f'{demand_center} trucking total cost'] =\
             hexagons[f'{demand_center} road construction costs'] +\
-                hexagons[f'{demand_center} trucking transport and conversion costs'] +\
+                trucking_costs +\
                     hexagons[f'{demand_center} trucking production cost'] +\
                         hexagons['Lowest water cost']
         hexagons[f'{demand_center} pipeline total cost'] =\
-                hexagons[f'{demand_center} pipeline transport and conversion costs'] +\
+                trucking_costs +\
                     hexagons[f'{demand_center} pipeline production cost'] +\
                         hexagons['Lowest water cost']
 
