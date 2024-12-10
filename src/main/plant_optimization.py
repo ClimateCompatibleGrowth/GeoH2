@@ -47,8 +47,11 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
     pipeline_hourly_quantity = quantity/index.size
     pipeline_hourly_demand_schedule = pd.DataFrame(pipeline_hourly_quantity, index=index,  columns = ['Demand'])
 
+    # NaN is where there is no road access and no construction so hexagon is infeasible for trucking.
+    if np.isnan(transport_state):
+        trucking_hourly_demand_schedule = np.nan
     # If demand center is in hexagon
-    if transport_state=="None":
+    elif transport_state=="None":
         # Schedule for trucking
         annual_deliveries = 365*24 # -- This is just the number of hours in a year? Why is this "annual deliveries"?
         # -- Is it just because this is where there is no transport so it creates an even profile?
@@ -58,7 +61,6 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
         trucking_demand_schedule = pd.DataFrame(trucking_hourly_demand, index=index, columns = ['Demand'])
         # Could we add some comment to explain why this is still called "trucking" schedule despite no trucking happening?
         trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
-    # We need to catch the nan case - None is where the deamand is on-site, nan is where there is no road access and no construction so hexagon is infeasible for trucking.
     else:
         transport_params = pd.read_excel(transport_params_filepath,
                                             sheet_name = transport_state,
@@ -246,7 +248,7 @@ if __name__ == "__main__":
     # Loop through all demand centers -- limit this on continental scale
     for demand_center in demand_centers:
         # Store trucking results
-        lc_trucking = np.zeros(len_hexagons)
+        trucking_lcs = np.zeros(len_hexagons)
         t_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
         t_electrolyzer_capacities= np.zeros(len_hexagons)
         t_battery_capacities = np.zeros(len_hexagons)
@@ -254,7 +256,7 @@ if __name__ == "__main__":
         
         # Store pipeline variables
         # -- Eventual generalisation of LCOH could be just LC for levelised cost?
-        lc_pipeline = np.zeros(len_hexagons)
+        pipeline_lcs = np.zeros(len_hexagons)
         p_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
         p_electrolyzer_capacities= np.zeros(len_hexagons)
         p_battery_capacities = np.zeros(len_hexagons)
@@ -297,16 +299,16 @@ if __name__ == "__main__":
                 # For trucking, set it up with the trucking demand schedule
                 if transport == "trucking":
                     # For all where there is a trucking state that's viable
-                    if trucking_state != np.nan:
+                    if np.isnan(trucking_state) == False:
                         network.set_network(trucking_demand_schedule, times, country_series)
                         network.set_generators_in_network(country_series)
                         solve_model(network.n, solver)
-                        lc_trucking[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
+                        trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], t_h2_storages[i] = get_results(network.n, trucking_demand_schedule, generators)
                         for gen, capacity in generators_capacities.items():
                             t_generators_capacities[gen].append(capacity)\
                     # If the hexagon has no viable trucking state (i.e., no roads reach it), set everything to nan.
                     else:
-                        lc_trucking[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                        trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
                         t_h2_storages[i] = np.nan
                         for gen, capacity in generators_capacities.items():
                             t_generators_capacities[gen].append(np.nan)
@@ -316,7 +318,7 @@ if __name__ == "__main__":
                         network.set_network(pipeline_demand_schedule, times, country_series)
                         network.set_generators_in_network(country_series)
                         solve_model(network.n, solver)
-                        lc_pipeline[i], generators_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
+                        pipeline_lcs[i], generators_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule, generators)
                         for gen, capacity in generators_capacities.items():
                             p_generators_capacities[gen].append(capacity)
                     # If construction is false, you can't transport it - everything gets nan UNLESS you're in the demand centre hexagon
@@ -326,13 +328,13 @@ if __name__ == "__main__":
                             network.set_network(pipeline_demand_schedule, times, country_series)
                             network.set_generators_in_network(country_series)
                             solve_model(network.n, solver)
-                            lc_pipeline[i], generators_capacities, p_electrolyzer_capacities[i], \
+                            pipeline_lcs[i], generators_capacities, p_electrolyzer_capacities[i], \
                             p_battery_capacities[i], p_h2_storages[i] = get_results(network.n, pipeline_demand_schedule,
                                                                                     generators)
                             for gen, capacity in generators_capacities.items():
                                 p_generators_capacities[gen].append(capacity)
                         else:
-                            lc_pipeline[i], p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = np.nan
+                            pipeline_lcs[i], p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = np.nan
                             for gen in p_generators_capacities.keys():
                                 p_generators_capacities[gen].append(np.nan)
                 
@@ -342,7 +344,7 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} trucking electrolyzer capacity'] = t_electrolyzer_capacities
         hexagons[f'{demand_center} trucking battery capacity'] = t_battery_capacities
         hexagons[f'{demand_center} trucking H2 storage capacity'] = t_h2_storages
-        hexagons[f'{demand_center} trucking production cost'] = lc_trucking            
+        hexagons[f'{demand_center} trucking production cost'] = trucking_lcs            
 
         # Updating pipeline-based results in hexagon file
         for gen, capacities in p_generators_capacities.items():
@@ -350,7 +352,7 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} pipeline electrolyzer capacity'] = p_electrolyzer_capacities
         hexagons[f'{demand_center} pipeline battery capacity'] = p_battery_capacities
         hexagons[f'{demand_center} pipeline H2 storage capacity'] = p_h2_storages
-        hexagons[f'{demand_center} pipeline production cost'] = lc_pipeline
+        hexagons[f'{demand_center} pipeline production cost'] = pipeline_lcs
 
 
     hexagons.to_file('resources/hex_lc_DJ.geojson', driver='GeoJSON', encoding='utf-8')
