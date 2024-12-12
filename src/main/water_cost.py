@@ -33,7 +33,7 @@ def main():
     electricity_demand_ocean_h2o_treatment = water_data['Ocean water treatment electricity demand (kWh/m3)']
     water_transport_costs = water_data['Water transport cost (euros/100 km/m3)']
     water_spec_cost = water_data['Water specific cost (euros/m3)']
-    water_demand = water_data['Water demand  (L/kg H2)']
+    water_demand = water_data['Water demand  (L/kg of product)']
     elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
     
     # Loop through all hexagons

@@ -15,9 +15,9 @@ import logging
 import numpy as np
 import pandas as pd
 import warnings
-from network import Network
+from network import Network, nh3_pyomo_constraints
 
-def get_demand_schedule(quantity, start_date, end_date, transport_state, transport_params_filepath):
+def get_demand_schedule(quantity, start_date, end_date, transport_state, transport_params_filepath, freq):
     '''
     Calculates hourly product demand for truck shipment and pipeline transport.
 
@@ -43,12 +43,14 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
     '''
     # Schedule for pipeline
     # -- Should "freq" be a snakemake input somehow? So the user can define the resolution of the whole run?
-    index = pd.date_range(start_date, end_date, freq = 'H')
+    index = pd.date_range(start_date, end_date, freq = freq)
     pipeline_hourly_quantity = quantity/index.size
     pipeline_hourly_demand_schedule = pd.DataFrame(pipeline_hourly_quantity, index=index,  columns = ['Demand'])
+    # Resample pipeline schedule
+    pipeline_demand_resampled_schedule = pipeline_hourly_demand_schedule.resample(freq).mean()
 
     # NaN is where there is no road access and no construction so hexagon is infeasible for trucking.
-    if np.isnan(transport_state):
+    if pd.isnull(transport_state):
         trucking_hourly_demand_schedule = np.nan
     # If demand center is in hexagon
     elif transport_state=="None":
@@ -59,26 +61,66 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
         trucking_hourly_demand = quantity/annual_deliveries
         index = pd.date_range(start_date, end_date, periods=annual_deliveries)
         trucking_demand_schedule = pd.DataFrame(trucking_hourly_demand, index=index, columns = ['Demand'])
-        # Could we add some comment to explain why this is still called "trucking" schedule despite no trucking happening?
+        # -- Could we add some comment to explain why this is still called "trucking" schedule despite no trucking happening?
+        # First create hourly schedule
         trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
+        # Then resample to desired frequency using mean
+        trucking_demand_resampled_schedule = trucking_hourly_demand_schedule.resample(freq).mean()
     else:
         transport_params = pd.read_excel(transport_params_filepath,
                                             sheet_name = transport_state,
                                             index_col = 'Parameter'
                                             ).squeeze('columns')
 
-        truck_capacity = transport_params['Net capacity (kg H2)']
+        truck_capacity = transport_params['Net capacity (kg of product)']
 
         # schedule for trucking
         annual_deliveries = quantity/truck_capacity
         quantity_per_delivery = quantity/annual_deliveries
         index = pd.date_range(start_date, end_date, periods=annual_deliveries)
         trucking_demand_schedule = pd.DataFrame(quantity_per_delivery, index=index, columns=['Demand'])
+        # First create hourly schedule
         trucking_hourly_demand_schedule = trucking_demand_schedule.resample('H').sum().fillna(0.)
+        # Then resample to desired frequency using mean
+        trucking_demand_resampled_schedule = trucking_hourly_demand_schedule.resample(freq).mean()
 
-    return trucking_hourly_demand_schedule, pipeline_hourly_demand_schedule
+    return trucking_demand_resampled_schedule, pipeline_demand_resampled_schedule
 
-def get_generator_profile(generator, cutout, layout, hexagons):
+def get_water_constraint(n, demand_profile, water_limit): 
+    '''
+    Calculates the water constraint.
+
+    Parameters
+    ----------
+    n : 
+        network
+    demand_profile : pandas DataFrame
+        hourly dataframe of hydrogen demand in kg.
+    water_limit : float
+        annual limit on water available for electrolysis in hexagon, in cubic meters.
+
+    Returns
+    -------
+    water_constraint : boolean
+        whether there is a water constraint or not.
+    '''
+    if n.type == "Hydrogen":
+        # total hydrogen demand in kg
+        total_hydrogen_demand = demand_profile['Demand'].sum()
+        # check if hydrogen demand can be met based on hexagon water availability
+        water_constraint =  total_hydrogen_demand <= water_limit * 111.57 # kg H2 per cubic meter of water
+    elif n.type == "Ammonia":
+        # total ammonia demand in kg
+        total_ammonia_demand = (
+                    (n.loads_t.p_set['Ammonia demand'] * n.snapshot_weightings['objective']).sum() / 6.25 * 1000)
+        # total hydrogen demand in kg
+        total_hydrogen_demand = total_ammonia_demand * 17 / 3  # convert kg ammonia to kg H2
+        # check if hydrogen demand can be met based on hexagon water availability
+        water_constraint = total_hydrogen_demand <= water_limit * 111.57  # kg H2 per cubic meter of water
+        # note that this constraint is purely stoichiometric-- more water may be needed for cooling or other processes
+    return water_constraint
+
+def get_generator_profile(generator, cutout, layout, hexagons, freq):
     '''
     Determines the generation profile of the specified generator in the cutout based on weather data.
 
@@ -108,19 +150,19 @@ def get_generator_profile(generator, cutout, layout, hexagons):
                             orientation='latitude_optimal',
                             layout = layout,
                             shapes = hexagons,
-                            per_unit = True)
+                            per_unit = True).resample(time=freq).mean()
         profile = profile.rename(dict(dim_0='hexagon'))
     elif generator == "Wind":
         # This string is what we should need to put in the config file (turbine) for both data prep, replacing the constant 4, replacing here.
         profile = cutout.wind(turbine = 'NREL_ReferenceTurbine_2020ATB_4MW',
                             layout = layout,
                             shapes = hexagons,
-                            per_unit = True)
+                            per_unit = True).resample(time=freq).mean()
         profile = profile.rename(dict(dim_0='hexagon'))
     
     return profile
 
-def solve_model(n, solver):
+def solve_model(network_class, solver):
     '''
     Solves model using the provided solver.
 
@@ -131,12 +173,19 @@ def solve_model(n, solver):
     solver : string
         name of solver to be used.
     '''
-    n.lopf(solver_name=solver,
-        solver_options = {'LogToConsole':0, 'OutputFlag':0},
-        pyomo=False,
-        )
+    if network_class.type == "Hydrogen":
+        network_class.n.lopf(solver_name=solver,
+            solver_options = {'LogToConsole':0, 'OutputFlag':0},
+            pyomo=False,
+            )
+    elif network_class.type == "Ammonia":
+        network_class.n.lopf(solver_name=solver,
+            solver_options={'LogToConsole': 0, 'OutputFlag': 0},
+            pyomo=True,
+            extra_functionality=nh3_pyomo_constraints,
+            )
 
-def get_h2_results(n, demand_profile, generators, water_limit=None):
+def get_h2_results(n, generators):
     '''
     Get final results from network optimisation
 
@@ -144,12 +193,8 @@ def get_h2_results(n, demand_profile, generators, water_limit=None):
     ----------
     n : 
         network
-    demand_profile : pandas DataFrame
-        hourly dataframe of product demand in kg.
     generators : list
         contains types of generators that this plant uses.
-    water_limit : float
-        annual limit on water available for electrolysis in hexagon, in cubic meters. Default is None.
 
     Returns
     -------
@@ -165,24 +210,6 @@ def get_h2_results(n, demand_profile, generators, water_limit=None):
         optimal hydrogen storage capacity in MWh.
     '''
     generator_capacities = {}
-    # If a water limit is given, check if demand can be met
-    if water_limit != None :
-        # total hydrogen demand in kg
-        total_hydrogen_demand = demand_profile['Demand'].sum()
-        # check if hydrogen demand can be met based on hexagon water availability
-        water_constraint =  total_hydrogen_demand <= water_limit * 111.57 # kg H2 per cubic meter of water - should probably justify or ref this somewhere?
-        if water_constraint == False:
-                    print('Not enough water to meet demand!')
-                    lc = np.nan
-                    for generator in generators:
-                            generator_capacities[generator] = np.nan
-                    electrolyzer_capacity = np.nan
-                    battery_capacity = np.nan
-                    h2_storage = np.nan
-                    return lc, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
-        # If water_constraint == True, it just means you have enough water so you can go on as normal
-
-    # If there isn't a water limit or if there is but we have enough water:
     lc = n.objective/(n.loads_t.p_set.sum()[0]/39.4*1000) # convert back to kg H2
     for generator in generators:
             generator_capacities[generator] = n.generators.p_nom_opt[f"{generator}"]
@@ -191,7 +218,7 @@ def get_h2_results(n, demand_profile, generators, water_limit=None):
     h2_storage = n.stores.e_nom_opt['Compressed H2 Store']
     return lc, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
 
-def get_nh3_results(n, generators, water_limit=None):
+def get_nh3_results(n, generators):
     '''
     Get final results from network optimisation
 
@@ -199,8 +226,6 @@ def get_nh3_results(n, generators, water_limit=None):
     ----------
     n : 
         network
-    demand_profile : pandas DataFrame
-        hourly dataframe of product demand in kg.
     generators : list
         contains types of generators that this plant uses.
     water_limit : float
@@ -220,32 +245,10 @@ def get_nh3_results(n, generators, water_limit=None):
         optimal hydrogen storage capacity in MWh.
     '''
     generator_capacities = {}
-    # if a water limit is given, check if hydrogen demand can be met
-    if water_limit != None:
-        # total ammonia demand in kg
-        total_ammonia_demand = (
-                    (n.loads_t.p_set['Ammonia demand'] * n.snapshot_weightings['objective']).sum() / 6.25 * 1000)
-        # total hydrogen demand in kg
-        total_hydrogen_demand = total_ammonia_demand * 17 / 3  # convert kg ammonia to kg H2
-        # check if hydrogen demand can be met based on hexagon water availability
-        water_constraint = total_hydrogen_demand <= water_limit * 111.57  # kg H2 per cubic meter of water
-        # note that this constraint is purely stoichiometric-- more water may be needed for cooling or other processes
-        if water_constraint == False:
-                    print('Not enough water to meet demand!')
-                    lc = np.nan
-                    for generator in generators:
-                            generator_capacities[generator] = np.nan
-                    electrolyzer_capacity = np.nan
-                    battery_capacity = np.nan
-                    h2_storage = np.nan
-                    return lc, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage
-        # If water_constraint == True, it just means you have enough water so you can go on as normal
-
-    # If there isn't a water limit or if there is but we have enough water:
     lc = n.objective / ((n.loads_t.p_set['Ammonia demand'] * n.snapshot_weightings[
         'objective']).sum() / 6.25 * 1000)  # convert back to kg NH3
     for generator in generators:
-            generator_capacities[generator] = n.generators.p_nom_opt[f"{generator}"]
+            generator_capacities[generator] = n.generators.p_nom_opt[generator]
     electrolyzer_capacity = n.links.p_nom_opt['Electrolysis']
     battery_capacity = n.stores.e_nom_opt['Battery']
     h2_storage = n.stores.e_nom_opt['CompressedH2Store']
@@ -255,7 +258,7 @@ def get_nh3_results(n, generators, water_limit=None):
 
 if __name__ == "__main__":
     # -- Next two lines to be deleted
-    warnings.filterwarnings("ignore")
+    # warnings.filterwarnings("ignore")
     logging.basicConfig(level=logging.ERROR)
 
     transport_params_filepath = 'parameters/transport_parameters.xlsx' # SNAKEMAKE INPUT
@@ -271,7 +274,7 @@ if __name__ == "__main__":
     start_date = f'{weather_year}-01-01'
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
-    generators = { "Wind" : [], "Solar" : []} # -- this can be gotten rid of whenever config call is added to line 241
+    generators = { "Wind" : [], "Solar" : []} # -- this can be gotten rid of whenever config call is added to line 346
     hexagons = gpd.read_file('resources/hex_transport_DJ.geojson') # SNAKEMAKE INPUT
     pipeline_construction = True # snakemake config
 
@@ -281,12 +284,16 @@ if __name__ == "__main__":
     layout = cutout.uniform_layout()
     profiles = []
     len_hexagons = len(hexagons)
+    water_limit = None # config call
+    freq = "3H" # config call
+    # freq = "H" # config call
     
     for gen in generators.keys(): # -- use a config call here instead of declaring above
-         profiles.append(get_generator_profile(gen, cutout, layout, hexagons))
+         profiles.append(get_generator_profile(gen, cutout, layout, hexagons, freq))
     
     times = profiles[0].time
-    plant_type = "Hydrogen" # -- get rid of and use config call elsewhere
+    plant_type = "Ammonia" # -- get rid of and use config call elsewhere
+    # plant_type = "Hydrogen" # -- get rid of and use config call elsewhere
 
     # Loop through all demand centers -- limit this on continental scale
     for demand_center in demand_centers:
@@ -296,17 +303,17 @@ if __name__ == "__main__":
         t_electrolyzer_capacities= np.zeros(len_hexagons)
         t_battery_capacities = np.zeros(len_hexagons)
         t_h2_storages= np.zeros(len_hexagons)
-        if plant_type == "Ammonia":
-             t_nh3_storages = np.zeros(len_hexagons)
         
         # Store pipeline variables
-        # -- Eventual generalisation of LCOH could be just LC for levelised cost?
         pipeline_lcs = np.zeros(len_hexagons)
         p_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
         p_electrolyzer_capacities= np.zeros(len_hexagons)
         p_battery_capacities = np.zeros(len_hexagons)
         p_h2_storages= np.zeros(len_hexagons)
+
+        # Ammonia extra storage variables
         if plant_type == "Ammonia":
+            t_nh3_storages = np.zeros(len_hexagons)
             p_nh3_storages = np.zeros(len_hexagons)
 
         annual_demand_quantity = demand_params.loc[demand_center,'Annual demand [kg/a]']
@@ -316,9 +323,22 @@ if __name__ == "__main__":
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']
             gen_index = 0
             generators = { "Wind" : [], "Solar" : []} # snakemake config,  already in the config as list, used in map_costs.py line 268
+            
+            # Get the demand schedule for both pipeline and trucking transport
+            trucking_demand_schedule, pipeline_demand_schedule =\
+                get_demand_schedule(annual_demand_quantity,
+                                start_date,
+                                end_date,
+                                trucking_state,
+                                transport_params_filepath,
+                                freq)
+            
             # Get the max capacity for each generation type
             for gen in generators.keys():
-                potential = profiles[gen_index].sel(hexagon = i)
+                if plant_type == "Hydrogen":
+                    potential = profiles[gen_index].sel(hexagon = i)
+                elif plant_type == "Ammonia":
+                    potential = profiles[gen_index].sel(hexagon=i, time=trucking_demand_schedule.index)
                 # -- Eventually make a for loop - we can change the theo_turbines name to be Wind
                 if gen == "Wind":
                     # -- We'll need to remove this hard-coded 4 eventually CONFIG FILE - 4 MW turbine in spatial data prep
@@ -330,75 +350,110 @@ if __name__ == "__main__":
                 generators[gen].append(potential)
                 generators[gen].append(max_capacity)
                 gen_index += 1
-            
-            # Get the demand schedule for both pipeline and trucking transport
-            trucking_demand_schedule, pipeline_demand_schedule =\
-                get_demand_schedule(annual_demand_quantity,
-                                start_date,
-                                end_date,
-                                trucking_state,
-                                transport_params_filepath)
-            
-            # For each transport type, set up the network
+
+            # For each transport type, set up the network and solve
             transport_types = ["trucking", "pipeline"]
             for transport in transport_types:
-                network = Network("Hydrogen", generators)
-                # For trucking, set it up with the trucking demand schedule
-                if transport == "trucking":
-                    # For all where there is a trucking state that's viable
-                    if np.isnan(trucking_state) == False:
-                        network.set_network(trucking_demand_schedule, times, country_series)
-                        network.set_generators_in_network(country_series)
-                        solve_model(network.n, solver)
-                        if plant_type == "Hydrogen": # config call
-                            trucking_lcs[i], generators_capacities, \
-                            t_electrolyzer_capacities[i], t_battery_capacities[i], \
-                            t_h2_storages[i] = get_h2_results(network.n, trucking_demand_schedule, generators)
-                        elif plant_type == "Ammonia": # config call
-                            trucking_lcs[i], generators_capacities, \
-                            t_electrolyzer_capacities[i], t_battery_capacities[i], \
-                            t_h2_storages[i], t_nh3_storages[i]  = get_nh3_results(network.n, trucking_demand_schedule, generators)
-                        
-                        for gen, capacity in generators_capacities.items():
-                            t_generators_capacities[gen].append(capacity)\
-                    # If the hexagon has no viable trucking state (i.e., no roads reach it), set everything to nan.
-                    else:
-                        trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
-                        t_h2_storages[i] = np.nan
-                        for gen, capacity in generators_capacities.items():
-                            t_generators_capacities[gen].append(np.nan)
+                network = Network(plant_type, generators) # config call
+
+                # If trucking is viable
+                if transport == "trucking" and pd.isnull(trucking_state) == False:
+                    network.set_network(trucking_demand_schedule, times, country_series)
+
+                    # Check for water constraint before any solving occurs
+                    if water_limit != None:
+                        water_constraint = get_water_constraint(network.n, trucking_demand_schedule, water_limit)
+                        if water_constraint == False:
+                            print('Not enough water to meet demand!')
+                            trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                            t_h2_storages[i] = np.nan
+                            for gen, capacity in generators_capacities.items():
+                                t_generators_capacities[gen].append(np.nan)
+                            continue
+                    
+                    network.set_generators_in_network(country_series)
+                    solve_model(network, solver)
+
+                    if plant_type == "Hydrogen": # config call
+                        trucking_lcs[i], generators_capacities, \
+                        t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                        t_h2_storages[i] = get_h2_results(network.n, generators)
+                    elif plant_type == "Ammonia": # config call
+                        trucking_lcs[i], generators_capacities, \
+                        t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                        t_h2_storages[i], t_nh3_storages[i]  = get_nh3_results(network.n, generators)
+                    
+                    for gen, capacity in generators_capacities.items():
+                        t_generators_capacities[gen].append(capacity)
+
+                # If the hexagon has no viable trucking state (i.e., no roads reach it), set everything to nan.
+                elif transport == "trucking" and pd.isnull(trucking_state) == True:
+                    trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                    t_h2_storages[i] = np.nan
+                    for gen, capacity in generators_capacities.items():
+                        t_generators_capacities[gen].append(np.nan)
+                    if plant_type == "Ammonia": # config call 
+                        t_nh3_storages[1] = np.nan
+
                 # For pipeline, set it up with pipeline demand schedule if construction is true
                 else:
                     if pipeline_construction == True:
                         network.set_network(pipeline_demand_schedule, times, country_series)
+
+                        # Check for water constraint before any solving occurs
+                        if water_limit != None:
+                            water_constraint = get_water_constraint(network.n, pipeline_demand_schedule, water_limit)
+                            if water_constraint == False:
+                                print('Not enough water to meet demand!')
+                                trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                                t_h2_storages[i] = np.nan
+                                for gen, capacity in generators_capacities.items():
+                                    t_generators_capacities[gen].append(np.nan)
+                                continue
+
                         network.set_generators_in_network(country_series)
-                        solve_model(network.n, solver)
+                        solve_model(network, solver)
+
                         if plant_type == "Hydrogen": # config call
                             pipeline_lcs[i], generators_capacities, \
                             p_electrolyzer_capacities[i], p_battery_capacities[i], \
-                            p_h2_storages[i] = get_h2_results(network.n, pipeline_demand_schedule, generators)
+                            p_h2_storages[i] = get_h2_results(network.n, generators)
                         elif plant_type == "Ammonia": # config call
                             pipeline_lcs[i], generators_capacities, \
                             p_electrolyzer_capacities[i], p_battery_capacities[i], \
-                            p_h2_storages[i], p_nh3_storages[i] = get_nh3_results(network.n, pipeline_demand_schedule, generators)
+                            p_h2_storages[i], p_nh3_storages[i] = get_nh3_results(network.n, generators)
 
                         for gen, capacity in generators_capacities.items():
                             p_generators_capacities[gen].append(capacity)
+
                     # If construction is false, you can't transport it - everything gets nan UNLESS you're in the demand centre hexagon
                     else:
-                        # Demand location has trucking state as None, this is an easy check
+                        # -- Demand location has trucking state as None, this is an easy check
                         if trucking_state == "None":
                             network.set_network(pipeline_demand_schedule, times, country_series)
+
+                            # Check for water constraint before any solving occurs
+                            if water_limit != None:
+                                water_constraint = get_water_constraint(network.n, pipeline_demand_schedule, water_limit)
+                                if water_constraint == False:
+                                    print('Not enough water to meet demand!')
+                                    trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
+                                    t_h2_storages[i] = np.nan
+                                    for gen, capacity in generators_capacities.items():
+                                        t_generators_capacities[gen].append(np.nan)
+                                    continue
+
                             network.set_generators_in_network(country_series)
-                            solve_model(network.n, solver)
+                            solve_model(network, solver)
+
                             if plant_type == "Hydrogen": # config call
                                 pipeline_lcs[i], generators_capacities, \
                                 p_electrolyzer_capacities[i], p_battery_capacities[i], \
-                                p_h2_storages[i] = get_h2_results(network.n, pipeline_demand_schedule, generators)
+                                p_h2_storages[i] = get_h2_results(network.n, generators)
                             elif plant_type == "Ammonia": # config call
                                 pipeline_lcs[i], generators_capacities, \
                                 p_electrolyzer_capacities[i], p_battery_capacities[i], \
-                                p_h2_storages[i], p_nh3_storages[i] = get_nh3_results(network.n, pipeline_demand_schedule, generators)
+                                p_h2_storages[i], p_nh3_storages[i] = get_nh3_results(network.n, generators)
 
                             for gen, capacity in generators_capacities.items():
                                 p_generators_capacities[gen].append(capacity)
@@ -406,6 +461,8 @@ if __name__ == "__main__":
                             pipeline_lcs[i], p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = np.nan
                             for gen in p_generators_capacities.keys():
                                 p_generators_capacities[gen].append(np.nan)
+                            if plant_type == "Ammonia": # config call 
+                                t_nh3_storages[1] = np.nan
                 
         # Updating trucking-based results in hexagon file
         for gen, capacities in t_generators_capacities.items():
@@ -416,7 +473,7 @@ if __name__ == "__main__":
         hexagons[f'{demand_center} trucking production cost'] = trucking_lcs
         if plant_type == "Ammonia":        
             hexagons[f'{demand_center} pipeline NH3 storage capacity'] = t_nh3_storages
-            
+
         # Updating pipeline-based results in hexagon file
         for gen, capacities in p_generators_capacities.items():
             hexagons[f'{demand_center} pipeline {gen.lower()} capacity'] = capacities
