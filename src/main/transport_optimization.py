@@ -17,7 +17,9 @@ Calculate cost of pipeline transport and demand profile based on optimal size
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from functions import CRF, cheapest_trucking_strategy, h2_conversion_stand, cheapest_pipeline_strategy
+from functions import CRF, cheapest_trucking_strategy, h2_conversion_stand, \
+                            cheapest_pipeline_strategy, calculate_trucking_costs, \
+                            calculate_nh3_pipeline_costs
 from shapely.geometry import Point
 import shapely.wkt
 import geopy.distance
@@ -81,12 +83,15 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
     return cost
 
 def main():
+    # plant_type = "Hydrogen"
+    plant_type = "Ammonia"
     tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
     demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
     country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
-    conversion_params_filepath = 'parameters/conversion_parameters.xlsx' # SNAKEMAKE INPUT
     transport_params_filepath = 'parameters/transport_parameters.xlsx' # SNAKEMAKE INPUT
     pipeline_params_filepath = 'parameters/pipeline_parameters.xlsx' # SNAKEMAKE INPUT
+    if plant_type == "Hydrogen":
+        conversion_params_filepath = 'parameters/conversion_parameters.xlsx' # SNAKEMAKE INPUT
     hexagons = gpd.read_file('data/hex_final_DJ.geojson')
     # Comment line above and uncomment line below for re-runs without
     # complete re-writes
@@ -153,26 +158,30 @@ def main():
             # If the hexagon contains the demand location
             if hex_geometry.contains(demand_location) == True:
                 # Calculate cost of converting hydrogen to a demand state for local demand (i.e. no transport)
-                if demand_state == 'NH3':
-                    trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state+'_load',
-                                             annual_demand_quantity,
-                                             elec_price,
-                                             heat_price,
-                                             plant_interest_rate,
-                                             conversion_params_filepath
-                                             )[2]/annual_demand_quantity
+                if plant_type == "Hydrogen":
+                    if demand_state == 'NH3':
+                        trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state+'_load',
+                                                annual_demand_quantity,
+                                                elec_price,
+                                                heat_price,
+                                                plant_interest_rate,
+                                                conversion_params_filepath
+                                                )[2]/annual_demand_quantity
+                        trucking_states[i] = "None"
+                        road_construction_costs[i] = 0.
+                    else:
+                        trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state,
+                                                annual_demand_quantity,
+                                                elec_price,
+                                                heat_price,
+                                                plant_interest_rate,
+                                                conversion_params_filepath
+                                                )[2]/annual_demand_quantity
+                        trucking_states[i] = "None"
+                        road_construction_costs[i] = 0.
+                elif plant_type == "Ammonia":
+                    trucking_costs[i] = pipeline_costs[i] = 0.
                     trucking_states[i] = "None"
-                    road_construction_costs[i] = 0.
-                else:
-                    trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state,
-                                             annual_demand_quantity,
-                                             elec_price,
-                                             heat_price,
-                                             plant_interest_rate,
-                                             conversion_params_filepath
-                                             )[2]/annual_demand_quantity
-                    trucking_states[i] = "None"
-                    road_construction_costs[i] = 0.
             
             # Otherwise, if the hexagon does not contain the demand center
             else:
@@ -199,20 +208,7 @@ def main():
                                                             road_opex)/annual_demand_quantity
 
                     # Then find cheapest trucking strategy
-                    trucking_costs[i], trucking_states[i] =\
-                        cheapest_trucking_strategy(demand_state,
-                                                    annual_demand_quantity,
-                                                    dist_to_demand,
-                                                    elec_price,
-                                                    heat_price,
-                                                    infrastructure_interest_rate,
-                                                    conversion_params_filepath,
-                                                    transport_params_filepath,
-                                                    )
-                # Otherwise, if road construction not allowed
-                else:
-                    # If distance to road is 0, just get cheapest trucking strategy
-                    if dist_to_road==0:
+                    if plant_type == "Hydrogen":
                         trucking_costs[i], trucking_states[i] =\
                             cheapest_trucking_strategy(demand_state,
                                                         annual_demand_quantity,
@@ -223,6 +219,37 @@ def main():
                                                         conversion_params_filepath,
                                                         transport_params_filepath,
                                                         )
+                    elif plant_type == "Ammonia":
+                        trucking_costs[i] = calculate_trucking_costs(demand_state,
+                                                           dist_to_demand, 
+                                                           annual_demand_quantity,
+                                                           infrastructure_interest_rate, 
+                                                           transport_params_filepath)/annual_demand_quantity
+                        trucking_states[i] = "NH3"
+                # Otherwise, if road construction not allowed
+                else:
+                    # No road construction is needed
+                    road_construction_costs[i] = 0.
+                    # If distance to road is 0, just get cheapest trucking strategy
+                    if dist_to_road==0:
+                        if plant_type == "Hydrogen":
+                            trucking_costs[i], trucking_states[i] =\
+                                cheapest_trucking_strategy(demand_state,
+                                                            annual_demand_quantity,
+                                                            dist_to_demand,
+                                                            elec_price,
+                                                            heat_price,
+                                                            infrastructure_interest_rate,
+                                                            conversion_params_filepath,
+                                                            transport_params_filepath,
+                                                            )
+                        elif plant_type == "Ammonia":
+                            trucking_costs[i] = calculate_trucking_costs(demand_state,
+                                                           dist_to_demand, 
+                                                           annual_demand_quantity,
+                                                           infrastructure_interest_rate, 
+                                                           transport_params_filepath)/annual_demand_quantity
+                            trucking_states[i] = "NH3"
                     # And if road construction is not allowed and distance to road is > 0, trucking states are nan
                     # -- Sam to confirm whether assigning nan will cause future issues in code
                     elif dist_to_road>0: 
@@ -230,17 +257,25 @@ def main():
 
                 # Calculate costs of constructing a pipeline to the hexagon if allowed
                 if needs_pipeline_construction== True:
-                    pipeline_cost, pipeline_type =\
-                        cheapest_pipeline_strategy(demand_state,
-                                                annual_demand_quantity,
-                                                dist_to_demand,
-                                                elec_price,
-                                                heat_price,
-                                                infrastructure_interest_rate,
-                                                conversion_params_filepath,
-                                                pipeline_params_filepath,
-                                                )
-                    pipeline_costs[i] = pipeline_cost
+                    if plant_type == "Hydrogen":
+                        pipeline_costs[i], pipeline_type =\
+                            cheapest_pipeline_strategy(demand_state,
+                                                    annual_demand_quantity,
+                                                    dist_to_demand,
+                                                    elec_price,
+                                                    heat_price,
+                                                    infrastructure_interest_rate,
+                                                    conversion_params_filepath,
+                                                    pipeline_params_filepath,
+                                                    )
+                    elif plant_type == "Ammonia":
+                        pipeline_costs[i], pipeline_type =\
+                            calculate_nh3_pipeline_costs(dist_to_demand,
+                                                        annual_demand_quantity,
+                                                        elec_price,
+                                                        pipeline_params_filepath,
+                                                        infrastructure_interest_rate
+                                                        )
                 else:
                     pipeline_costs[i] = np.nan
 

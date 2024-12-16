@@ -1,5 +1,6 @@
-import pandas as pd
+import math
 import numpy as np
+import pandas as pd
 
 def CRF(interest,lifetime):
     '''
@@ -24,7 +25,7 @@ def CRF(interest,lifetime):
     
     return CRF
 
-def trucking_costs(transport_state, distance, quantity, interest, transport_params_filepath):
+def calculate_trucking_costs(transport_state, distance, quantity, interest, transport_params_filepath):
     '''
     Calculates the annual cost of transporting hydrogen by truck.
 
@@ -67,7 +68,7 @@ def trucking_costs(transport_state, distance, quantity, interest, transport_para
 
     spec_capex_trailor = transport_params['Spec capex trailer (euros)']
     spec_opex_trailor =transport_params['Spec opex trailer (% of capex/a)']
-    net_capacity = transport_params['Net capacity (kg H2)']
+    net_capacity = transport_params['Net capacity (kg of product)']
     trailor_lifetime = transport_params['Trailer lifetime (a)']
     loading_unloading_time = transport_params['Loading unloading time (h)']
 
@@ -329,43 +330,43 @@ def cheapest_trucking_strategy(final_state, quantity, distance,
     # Different between _load and _unload is fuzzy
     if final_state == '500 bar':
         dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('500 bar', distance, quantity, interest, transport_params_filepath)
+                calculate_trucking_costs('500 bar', distance, quantity, interest, transport_params_filepath)
     elif final_state == 'NH3':
         dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
+                calculate_trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
     else:  
         dist_costs_500bar = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
+                calculate_trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
     
     if final_state == 'LH2':
         dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('LH2',distance, quantity,interest,transport_params_filepath)
+                calculate_trucking_costs('LH2',distance, quantity,interest,transport_params_filepath)
     elif final_state == 'NH3':
         # Should these ones be LH2 in first two lines???
         dist_costs_lh2 = h2_conversion_stand('500 bar', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
+                calculate_trucking_costs('500 bar',distance,quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand(final_state+'_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
     else:
         dist_costs_lh2 = h2_conversion_stand('LH2', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('LH2',distance, quantity,interest,transport_params_filepath) +\
+                calculate_trucking_costs('LH2',distance, quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
     
     if final_state == 'NH3':
         dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('NH3',distance, quantity, interest,transport_params_filepath)
+                calculate_trucking_costs('NH3',distance, quantity, interest,transport_params_filepath)
         dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('LOHC',distance, quantity, interest,transport_params_filepath) +\
+                calculate_trucking_costs('LOHC',distance, quantity, interest,transport_params_filepath) +\
                     h2_conversion_stand('LOHC_unload', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                         h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
     else:
         dist_costs_nh3 = h2_conversion_stand('NH3_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('NH3',distance, quantity,interest,transport_params_filepath) +\
+                calculate_trucking_costs('NH3',distance, quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand('NH3_unload', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                         h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
         dist_costs_lohc = h2_conversion_stand('LOHC_load', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
-                trucking_costs('LOHC',distance, quantity,interest,transport_params_filepath) +\
+                calculate_trucking_costs('LOHC',distance, quantity,interest,transport_params_filepath) +\
                     h2_conversion_stand('LOHC_unload', quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2] +\
                         h2_conversion_stand(final_state, quantity, elec_costs, heat_costs, interest, conversion_params_filepath)[2]
 
@@ -511,3 +512,79 @@ def pipeline_costs(distance, quantity, elec_cost, pipeline_params_filepath, inte
     annual_costs = capex_annual + opex_annual + electricity_costs
 
     return annual_costs, f"{pipeline_type} Pipeline"
+
+#Only new pipelines
+def calculate_nh3_pipeline_costs(distance, quantity, elec_cost, pipeline_params_filepath, interest):
+    '''
+    calculates the annualized cost of building a pipeline.
+
+    Parameters
+    ----------
+    distance : float
+        distance from production site to demand site in km.
+    quantity : float
+        annual quantity of hydrogen demanded in kg.
+    elec_cost : float
+        price of electricity along pipeline in euros.
+    interest : float
+        interest rate on capital investments.
+
+    Returns
+    -------
+    cost_per_unit : float
+        annual costs for pipeline per kilogram of ammonia transported.
+    string
+        size of pipeline to build
+
+    '''
+    quantity = quantity / 1000 # convert kg to t
+    all_parameters = pd.read_excel(pipeline_params_filepath,
+                                   sheet_name='All',
+                                    index_col = 'Parameter'
+                                    ).squeeze('columns')
+    opex = all_parameters['Opex (% of capex)']
+    availability = all_parameters['Availability']
+    lifetime_pipeline = all_parameters['Pipeline lifetime (a)']
+    # lifetime_compressors = all_parameters['Compressor lifetime (a)']
+    electricity_demand = all_parameters['Electricity demand (kWh/kg*km)']
+    large_max_flow = all_parameters['Large pipeline max capacity (t NH3/a)']*availability
+    large_min_flow = all_parameters['Large pipeline min capacity (t NH3/a)']*availability # t to kg
+    med_min_flow = all_parameters['Medium pipeline min capacity (t NH3/a)']*availability # t to kg
+    small_min_flow = all_parameters['Small pipeline min capcity (t NH3/a)']*availability # t to kg
+    # if demand is large enough, split flow into multiple pipelines
+    if quantity > large_max_flow:
+        n_pipelines = math.ceil(quantity/large_max_flow)
+        quantity_per_pipeline = quantity / n_pipelines
+    else:
+        n_pipelines = 1
+        quantity_per_pipeline = quantity
+        
+    if quantity_per_pipeline >= small_min_flow and quantity_per_pipeline < med_min_flow:
+        pipeline_type = 'Small'
+    
+    elif quantity_per_pipeline >= med_min_flow and quantity_per_pipeline < large_min_flow:
+        pipeline_type = 'Medium'
+    
+    elif quantity_per_pipeline >= large_min_flow and quantity_per_pipeline <= large_max_flow:
+        pipeline_type = 'Large'
+    
+    elif quantity_per_pipeline < small_min_flow:
+        return np.nan,'Flow too small for pipeline'
+    
+    pipeline_parameters = pd.read_excel(pipeline_params_filepath,
+                                   sheet_name=pipeline_type,
+                                    index_col = 'Parameter'
+                                    ).squeeze('columns')
+    y_int = pipeline_parameters['Capex y-intercept (€/t/yr/100km)']
+    print(y_int)
+    slope = pipeline_parameters['Capex flow coefficient (€/t^2/yr^2/100km)']
+    print(slope)
+    capex_coeff = (y_int + slope*quantity_per_pipeline)
+    print(capex_coeff)
+    capex_annual = (n_pipelines*(capex_coeff*distance/100*quantity_per_pipeline)*CRF(interest,lifetime_pipeline)) # distance coefficients are per 100 km
+    opex_annual = opex*n_pipelines*(capex_coeff*distance/100*quantity_per_pipeline)
+    electricity_costs = electricity_demand * distance * quantity * elec_cost
+
+    annual_costs = capex_annual + opex_annual + electricity_costs
+    cost_per_unit = annual_costs/(quantity*1000) # convert back to kg
+    return cost_per_unit, f"{pipeline_type} Pipeline"
