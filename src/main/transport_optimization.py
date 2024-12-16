@@ -280,10 +280,14 @@ def main():
                     pipeline_costs[i] = np.nan
 
         # Hexagon file updated with each demand center's costs and states
-        hexagons[f'{demand_center} road construction costs'] = road_construction_costs
-        hexagons[f'{demand_center} trucking transport and conversion costs'] = trucking_costs # cost of road construction, supply conversion, trucking transport, and demand conversion
-        hexagons[f'{demand_center} trucking state'] = trucking_states # cost of road construction, supply conversion, trucking transport, and demand conversion
-        hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
+        hexagons[f'{demand_center} road construction costs'] = road_construction_costs # cost of road construction
+        if plant_type == "Hydrogen":
+            hexagons[f'{demand_center} trucking transport and conversion costs'] = trucking_costs # supply conversion, trucking transport, and demand conversion
+            hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
+        elif plant_type == "Ammonia":
+            hexagons[f'{demand_center} trucking transport costs'] = trucking_costs # cost of trucking transport
+            hexagons[f'{demand_center} pipeline transport costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
+        hexagons[f'{demand_center} trucking state'] = trucking_states
 
     hexagons.to_file('resources/hex_transport_DJ.geojson', driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
 

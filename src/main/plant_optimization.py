@@ -292,8 +292,8 @@ if __name__ == "__main__":
          profiles.append(get_generator_profile(gen, cutout, layout, hexagons, freq))
     
     times = profiles[0].time
-    plant_type = "Ammonia" # -- get rid of and use config call elsewhere
-    # plant_type = "Hydrogen" # -- get rid of and use config call elsewhere
+    plant_type = "Ammonia" # -- config call
+    # plant_type = "Hydrogen" # -- config call
 
     # Loop through all demand centers -- limit this on continental scale
     for demand_center in demand_centers:

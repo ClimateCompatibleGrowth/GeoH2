@@ -19,19 +19,31 @@ from functions import CRF
 hexagons = gpd.read_file("results/hex_total_cost_DJ_2022.geojson") # snakemake config
 generators = ["Solar", "Wind"] # snakemake config (maybe call it below using .keys()/.items(), and so on)
 
+plant_type = "Ammonia" # -- config call
+# plant_type = "Hydrogen" # -- config call
+
 # Load necessary parameters
 demand_excel_path = 'parameters/demand_parameters.xlsx' # snakemake config
 demand_parameters = pd.read_excel(demand_excel_path, index_col='Demand center')
 country_excel_path = 'parameters/country_parameters.xlsx' # snakemake config
 country_parameters = pd.read_excel(country_excel_path, index_col='Country')
-stores_csv_path = 'parameters/basic_h2_plant/stores.csv' # H2 storage # snakemake config
-stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
-storage_csv_path = 'parameters/basic_h2_plant/storage_units.csv' # Battery # snakemake config
-storage_parameters = pd.read_csv(storage_csv_path, index_col='name')
-links_csv_path = 'parameters/basic_h2_plant/links.csv' # Electrolyzer # snakemake config
-links_parameters = pd.read_csv(links_csv_path, index_col='name')
-generators_csv_path = 'parameters/basic_h2_plant/generators.csv' # Solar and generator # snakemake config
-generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
+if plant_type == "Hydrogen":
+    storage_csv_path = 'parameters/basic_h2_plant/storage_units.csv' # Battery # snakemake config
+    storage_parameters = pd.read_csv(storage_csv_path, index_col='name')
+    stores_csv_path = 'parameters/basic_h2_plant/stores.csv' # H2 storage # snakemake config
+    stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
+    links_csv_path = 'parameters/basic_h2_plant/links.csv' # Electrolyzer # snakemake config
+    links_parameters = pd.read_csv(links_csv_path, index_col='name')
+    generators_csv_path = 'parameters/basic_h2_plant/generators.csv' # Solar and generator # snakemake config
+    generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
+elif plant_type == "Ammonia":
+    stores_csv_path = 'parameters/basic_nh3_plant/stores.csv' # H2 storage # snakemake config
+    stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
+    links_csv_path = 'parameters/basic_nh3_plant/links.csv' # Electrolyzer # snakemake config
+    links_parameters = pd.read_csv(links_csv_path, index_col='name')
+    generators_csv_path = 'parameters/basic_nh3_plant/generators.csv' # Solar and generator # snakemake config
+    generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
+
 
 # For each demand center, get costs for each component
 
@@ -55,26 +67,37 @@ for demand_center in demand_centers:
     for transport_method in transport_methods:  
         # Work out the cost for each component using the data for the country you are looking at
         # Battery
-        capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
+        if plant_type == "Hydrogen":
+            capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
+        elif plant_type == "Ammonia":
+            capital_cost_battery = stores_parameters.loc['Battery', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} battery costs'] = \
-            hexagons[f'{demand_center} {transport_method} battery capacity'] * capital_cost_battery * crf_plant
-        hexagons[f'{demand_center} LCOH - {transport_method} battery costs portion'] = \
-            hexagons[f'{demand_center} {transport_method} battery costs'] \
-                / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+            hexagons[f'{demand_center} {transport_method} battery capacity'] *\
+                capital_cost_battery * crf_plant
+        hexagons[f'{demand_center} LC - {transport_method} battery costs portion'] = \
+            hexagons[f'{demand_center} {transport_method} battery costs']/ \
+                demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
         
         # Electrolyzer
         capital_cost_electrolyzer = links_parameters.loc['Electrolysis', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} electrolyzer costs'] = \
-            hexagons[f'{demand_center} {transport_method} electrolyzer capacity'] * capital_cost_electrolyzer * crf_plant
-        hexagons[f'{demand_center} LCOH - {transport_method} electrolyzer portion'] = \
-            hexagons[f'{demand_center} {transport_method} electrolyzer costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+            hexagons[f'{demand_center} {transport_method} electrolyzer capacity'] *\
+                capital_cost_electrolyzer * crf_plant
+        hexagons[f'{demand_center} LC - {transport_method} electrolyzer portion'] = \
+            hexagons[f'{demand_center} {transport_method} electrolyzer costs']/ \
+                demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
  
         # H2 Storage
-        capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
+        if plant_type == "Hydrogen":
+            capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
+        elif plant_type == "Ammonia":
+                capital_cost_h2_storage = stores_parameters.loc['CompressedH2Store', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} H2 storage costs'] = \
-            hexagons[f'{demand_center} {transport_method} H2 storage capacity'] * capital_cost_h2_storage * crf_plant
-        hexagons[f'{demand_center} LCOH - {transport_method} H2 storage portion'] = \
-            hexagons[f'{demand_center} {transport_method} H2 storage costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+            hexagons[f'{demand_center} {transport_method} H2 storage capacity'] *\
+                capital_cost_h2_storage * crf_plant
+        hexagons[f'{demand_center} LC - {transport_method} H2 storage portion'] = \
+            hexagons[f'{demand_center} {transport_method} H2 storage costs']/ \
+                demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
         
         # Work out CRF, then work out the cost for each generator using the data for the country you are looking at
         # Generators
@@ -86,8 +109,9 @@ for demand_center in demand_centers:
             capital_cost_generator = generators_parameters.loc[f'{generator}', 'capital_cost']
             hexagons[f'{demand_center} {transport_method} {generator_lower} costs'] = \
                 hexagons[f'{demand_center} {transport_method} {generator_lower} capacity'] * capital_cost_generator * crf_generator
-            hexagons[f'{demand_center} LCOH - {transport_method} {generator_lower} portion'] = \
-                hexagons[f'{demand_center} {transport_method} {generator_lower} costs'] / demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
+            hexagons[f'{demand_center} LC - {transport_method} {generator_lower} portion'] = \
+                hexagons[f'{demand_center} {transport_method} {generator_lower} costs']/ \
+                    demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
 hexagons.to_file('results/hex_cost_components_DJ_2022.geojson', driver='GeoJSON', encoding='utf-8') # snakemake config
 hexagons.to_csv('results/hex_cost_components_DJ_2022.csv', encoding='latin-1') # snakemake config
