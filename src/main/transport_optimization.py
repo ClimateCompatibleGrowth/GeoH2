@@ -83,8 +83,8 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
     return cost
 
 def main():
-    # plant_type = "Hydrogen"
-    plant_type = "Ammonia"
+    # plant_type = "Hydrogen" # config call
+    plant_type = "Ammonia" # config call
     tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
     demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
     country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT

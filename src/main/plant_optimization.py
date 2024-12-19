@@ -274,7 +274,7 @@ if __name__ == "__main__":
     start_date = f'{weather_year}-01-01'
     end_date = f'{end_weather_year}-01-01'
     solver = "gurobi" # maybe make this into a snakemake wildcard?
-    generators = { "Wind" : [], "Solar" : []} # -- this can be gotten rid of whenever config call is added to line 346
+    generators = { "Wind" : [], "Solar" : []} # -- config call
     hexagons = gpd.read_file('resources/hex_transport_DJ.geojson') # SNAKEMAKE INPUT
     pipeline_construction = True # snakemake config
 
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     freq = "3H" # config call
     # freq = "H" # config call
     
-    for gen in generators.keys(): # -- use a config call here instead of declaring above
+    for gen in generators.keys():
          profiles.append(get_generator_profile(gen, cutout, layout, hexagons, freq))
     
     times = profiles[0].time
@@ -322,7 +322,7 @@ if __name__ == "__main__":
         for i in range(len_hexagons):
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']
             gen_index = 0
-            generators = { "Wind" : [], "Solar" : []} # snakemake config,  already in the config as list, used in map_costs.py line 268
+            generators = { "Wind" : [], "Solar" : []} # -- config call
             
             # Get the demand schedule for both pipeline and trucking transport
             trucking_demand_schedule, pipeline_demand_schedule =\
@@ -354,7 +354,7 @@ if __name__ == "__main__":
             # For each transport type, set up the network and solve
             transport_types = ["trucking", "pipeline"]
             for transport in transport_types:
-                network = Network(plant_type, generators) # config call
+                network = Network(plant_type, generators)
 
                 # If trucking is viable
                 if transport == "trucking" and pd.isnull(trucking_state) == False:
@@ -374,11 +374,11 @@ if __name__ == "__main__":
                     network.set_generators_in_network(country_series)
                     solve_model(network, solver)
 
-                    if plant_type == "Hydrogen": # config call
+                    if plant_type == "Hydrogen":
                         trucking_lcs[i], generators_capacities, \
                         t_electrolyzer_capacities[i], t_battery_capacities[i], \
                         t_h2_storages[i] = get_h2_results(network.n, generators)
-                    elif plant_type == "Ammonia": # config call
+                    elif plant_type == "Ammonia":
                         trucking_lcs[i], generators_capacities, \
                         t_electrolyzer_capacities[i], t_battery_capacities[i], \
                         t_h2_storages[i], t_nh3_storages[i]  = get_nh3_results(network.n, generators)
@@ -392,7 +392,7 @@ if __name__ == "__main__":
                     t_h2_storages[i] = np.nan
                     for gen, capacity in generators_capacities.items():
                         t_generators_capacities[gen].append(np.nan)
-                    if plant_type == "Ammonia": # config call 
+                    if plant_type == "Ammonia":
                         t_nh3_storages[1] = np.nan
 
                 # For pipeline, set it up with pipeline demand schedule if construction is true
@@ -414,11 +414,11 @@ if __name__ == "__main__":
                         network.set_generators_in_network(country_series)
                         solve_model(network, solver)
 
-                        if plant_type == "Hydrogen": # config call
+                        if plant_type == "Hydrogen":
                             pipeline_lcs[i], generators_capacities, \
                             p_electrolyzer_capacities[i], p_battery_capacities[i], \
                             p_h2_storages[i] = get_h2_results(network.n, generators)
-                        elif plant_type == "Ammonia": # config call
+                        elif plant_type == "Ammonia":
                             pipeline_lcs[i], generators_capacities, \
                             p_electrolyzer_capacities[i], p_battery_capacities[i], \
                             p_h2_storages[i], p_nh3_storages[i] = get_nh3_results(network.n, generators)
@@ -446,11 +446,11 @@ if __name__ == "__main__":
                             network.set_generators_in_network(country_series)
                             solve_model(network, solver)
 
-                            if plant_type == "Hydrogen": # config call
+                            if plant_type == "Hydrogen":
                                 pipeline_lcs[i], generators_capacities, \
                                 p_electrolyzer_capacities[i], p_battery_capacities[i], \
                                 p_h2_storages[i] = get_h2_results(network.n, generators)
-                            elif plant_type == "Ammonia": # config call
+                            elif plant_type == "Ammonia":
                                 pipeline_lcs[i], generators_capacities, \
                                 p_electrolyzer_capacities[i], p_battery_capacities[i], \
                                 p_h2_storages[i], p_nh3_storages[i] = get_nh3_results(network.n, generators)
@@ -461,7 +461,7 @@ if __name__ == "__main__":
                             pipeline_lcs[i], p_electrolyzer_capacities[i], p_battery_capacities[i], p_h2_storages[i] = np.nan
                             for gen in p_generators_capacities.keys():
                                 p_generators_capacities[gen].append(np.nan)
-                            if plant_type == "Ammonia": # config call 
+                            if plant_type == "Ammonia": 
                                 t_nh3_storages[1] = np.nan
                 
         # Updating trucking-based results in hexagon file

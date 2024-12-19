@@ -17,7 +17,7 @@ from functions import CRF
 
 # Load hexagons
 hexagons = gpd.read_file("results/hex_total_cost_DJ_2022.geojson") # snakemake config
-generators = ["Solar", "Wind"] # snakemake config (maybe call it below using .keys()/.items(), and so on)
+generators = {'Solar' : [], 'Wind' : []} # config call
 
 plant_type = "Ammonia" # -- config call
 # plant_type = "Hydrogen" # -- config call
@@ -101,7 +101,7 @@ for demand_center in demand_centers:
         
         # Work out CRF, then work out the cost for each generator using the data for the country you are looking at
         # Generators
-        for generator in generators:
+        for generator in generators.keys():
             generator_lower = generator.lower()
             interest_generator = country_parameters.loc[country, f'{generator} interest rate']
             lifetime_generator = country_parameters.loc[country, f'{generator} lifetime (years)']

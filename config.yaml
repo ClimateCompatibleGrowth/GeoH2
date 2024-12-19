@@ -1,8 +1,20 @@
 scenario:
-  country: ['NA']
-  weather_year: [2023]
+  country: ['DJ'] # Testing
+  weather_year: [2022] # Testing
   
-generators: ['Solar','Wind']
+generators: {'Solar' : [], 'Wind' : []}
+panel: 'CSi'
+turbine: 'NREL_ReferenceTurbine_2020ATB_4MW'
+gen_size:
+    solar: 1
+    wind: 4
+    
+# plant_type: 'Hydrogen'/'Ammonia'
+plant_type: 'Ammonia'
+# Hydrogen uses 'H' freq and Ammonia uses '3H' freq
+freq: '3H'
+
+water_limit: None
 
 transport:
     pipeline_construction: true

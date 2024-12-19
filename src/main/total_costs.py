@@ -24,6 +24,7 @@ def main():
                                     index_col='Demand center',
                                     )
     demand_centers = demand_center_list.index
+    plant_type = "Hydrogen" # config file
     plant_type = "Ammonia" # config file
 
     check_folder_exists("results")

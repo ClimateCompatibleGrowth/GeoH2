@@ -65,7 +65,7 @@ hexagons = gpd.read_file("results/hex_cost_components_DJ_2022.geojson")
 demand_excel_path = 'parameters/demand_parameters.xlsx'
 demand_parameters = pd.read_excel(demand_excel_path,index_col='Demand center')
 demand_centers = demand_parameters.index
-transport_methods = ['pipeline', 'trucking']
+transport_methods = ["trucking", "pipeline"]
 
 # plot LCOH for each hexagon
 # update central coordinates for area considered
@@ -77,7 +77,7 @@ central_lon = (min_lon + max_lon)/2
 central_lat = (min_lat + max_lat)/2
 
 crs = ccrs.Orthographic(central_longitude = central_lon, central_latitude= central_lat)
-generators = ["Solar", "Wind"] # snakemake config
+generators = {'Solar' : [], 'Wind' : []} # config call
 
 output_folder = 'plots/DJ_2022'
 check_folder_exists(output_folder)
@@ -93,26 +93,27 @@ for demand_center in demand_centers:
                       {'label':'Production LC [euros/kg]'})
 
         #%% plot transportation costs
-        if transport_method == "trucking":
-            if plant_type == "Hydrogen":
+        if plant_type == "Hydrogen":
+            if transport_method == "trucking":
                 hexagons[f'{demand_center} total {transport_method} costs'] =\
                     hexagons[f'{demand_center} {transport_method} transport and conversion costs']+\
                         hexagons[f'{demand_center} road construction costs']
                 
                 plot_and_save(crs, f'{demand_center} total {transport_method} costs', 
                       {'label':f'{transport_method} cost [euros/kg]'})
-            elif plant_type == "Ammonia":
+            elif transport_method == "pipeline":
+                plot_and_save(crs, f'{demand_center} {transport_method} transport and conversion costs', 
+                            {'label':f'{transport_method} cost [euros/kg]'})
+        elif plant_type == "Ammonia":
+            if transport_method == "trucking":
                 hexagons[f'{demand_center} total {transport_method} costs'] =\
                     hexagons[f'{demand_center} {transport_method} transport costs']+\
                         hexagons[f'{demand_center} road construction costs']
         
                 plot_and_save(crs, f'{demand_center} total {transport_method} costs', 
                             {'label':f'{transport_method} cost [euros/kg]'})
-        elif transport_methods == "pipeline":
-            if plant_type == "Hydrogen":
-                plot_and_save(crs, f'{demand_center} {transport_method} transport and conversion costs', 
-                            {'label':f'{transport_method} cost [euros/kg]'})
-            elif plant_type == "Ammonia":
+            elif transport_method == "pipeline":
+                # -- the below doesn't work for ammonia pipeline as it's null. Might need to change nulls to zero 
                 plot_and_save(crs, f'{demand_center} {transport_method} transport costs', 
                             {'label':f'{transport_method} cost [euros/kg]'})
 
@@ -145,7 +146,7 @@ for demand_center in demand_centers:
         plot_and_save(crs, f'{demand_center} {transport_method} battery costs',
                       {'label': '$'})
 
-        for generator in generators:
+        for generator in generators.keys():
             # generator capacity
             generator = generator.lower()
     
