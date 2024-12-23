@@ -24,23 +24,26 @@ def plot_and_save(crs, name, legend_kwds, output_folder, figsize=(10,5), legend=
     Parameters
     ----------
     crs : 
-        ...
-    column : string
+        an object of the cartopy.crs.Orthographic class, which determines
+        the coordinate reference systems (crs) of a given central latitude and 
+        longitude.
+    name : string
         name of column to use.
     legend_kwds : 
-        ...
+        keyword arguments - 'label' will overwrite the auto-generated label.
     title : string
         name of axes.
     figsize : tuple
         size of figure. Default is (10,5)
     legend : boolean
-        ...
+        whether to plot a legend or not
     cmap : string
-        ...
+        the name of a colormap.
     missing_kwds : dictionary
-        ...
+        keyword arguments specifying the colour for missing values. If None, 
+        missing values are not plotted.
     bbox_inches : string
-        ...
+        bounding box in inches - will only save the given portion of the figure.
     """
     fig = plt.figure(figsize=figsize)
     ax = plt.axes(projection=crs)
@@ -78,6 +81,7 @@ if __name__ == "__main__":
     central_lat = (min_lat + max_lat)/2
 
     crs = ccrs.Orthographic(central_longitude = central_lon, central_latitude= central_lat)
+    print(type(crs))
     generators = {'Solar' : [], 'Wind' : []} # config call
 
     output_folder = 'plots/DJ_2022'
