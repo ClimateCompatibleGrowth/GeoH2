@@ -81,7 +81,6 @@ if __name__ == "__main__":
     central_lat = (min_lat + max_lat)/2
 
     crs = ccrs.Orthographic(central_longitude = central_lon, central_latitude= central_lat)
-    print(type(crs))
     generators = {'Solar' : [], 'Wind' : []} # config call
 
     output_folder = 'plots/DJ_2022'
