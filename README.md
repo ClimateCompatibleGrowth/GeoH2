@@ -72,7 +72,9 @@ Once you have created a hexagon file with these features, save it in the `Data` 
 
 Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the Parameters folder.
 
-- **Basic H2 plant:** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
+- **Basic H2 plant:** In this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
+
+**Note:** The excel files must be kept in a folder with the title matching the Country ISO Code. From the use case of Namibia, we have them in a folder titled "NA"
 
 - **Conversion parameters:** `conversion_parameters.xlsx` includes parameters related to converting between states of hydrogen.
 
@@ -106,7 +108,7 @@ Renewable generators considered for hydrogen plant construction are included in 
 
 In the `transport` section, `pipeline_construction` and `road_construction` can be switched from `True` to `False`, as needed.
 
- **Note:** `country` and `weather_year` can be a list of more than one, depending on how many countries and years you are analysing.
+ **Note:** `country` and `weather_year` can be a list of more than one, depending on how many countries and years you are analysing. You must ensure all other files that need for each country run are where they should be.
 
 ## Rules
 
@@ -135,17 +137,17 @@ This is to allow for a quicker transition to analyse more data and to clear up s
 snakemake -j [NUMBER OF CORES TO BE USED] clean
 ```
 
-### Run all rules
+### Run optimisation and mapping rules
 
-This section can be used to run all rules, without having to run exact output files. If any files are changed after a completed run, the same command can be used again and Snakemake will only run the necessary scripts to ensure the results are up to date.
+This section can be used to run most rules, without having to run exact output files. If any files are changed after a completed run, the same command can be used again and Snakemake will only run the necessary scripts to ensure the results are up to date.
 
-The total hydrogen cost for all scenarios can be run by entering the following rule into the terminal:
+The total hydrogen cost for all scenarios can be run by entering the following rule into the terminal (make sure you have the necessary weather file in the Cutouts folder before running, you might have to run the get_weather_data rule):
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] calculate_all_countries_and_years_total_hydrogen_costs
+snakemake -j [NUMBER OF CORES TO BE USED] optimise_all
 ```
 Similarly, you can map hydrogen costs for all scenarios with the following rule:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] map_all_countries_and_years
+snakemake -j [NUMBER OF CORES TO BE USED] map_all
 ```
 
 ### `assign_country` rule
@@ -159,6 +161,7 @@ snakemake -j [NUMBER OF CORES TO BE USED] Data/hexagons_with_country_[COUNTRY IS
 
 ### `get_weather_data` rule
 
+**Note:** This rule will also create the assign_country rule's output, as it uses that file.
 You can run this rule by entering the following command in your terminal:
 ```
 snakemake -j [NUMBER OF CORES TO BE USED] Cutouts/[COUNTRY ISO CODE]_[WEATHER YEAR].nc

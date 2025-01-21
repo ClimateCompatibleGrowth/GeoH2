@@ -203,8 +203,7 @@ if __name__ == "__main__":
     end_date = f'{end_weather_year}-01-01'
     
     hexagons = gpd.read_file(str(snakemake.input.hexagons))
-
-    cutout = atlite.Cutout(str(snakemake.input.cutout))
+    cutout = atlite.Cutout(f'Cutouts/{snakemake.wildcards.country}_{snakemake.wildcards.weather_year}.nc')
     layout = cutout.uniform_layout()
 
     # can add hydro and other generators here
