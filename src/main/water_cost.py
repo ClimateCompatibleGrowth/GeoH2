@@ -16,8 +16,8 @@ import numpy as np
 
 def main():
     hexagons = gpd.read_file('resources/hex_lc_DJ.geojson') # SNAKEMAKE INPUT
-    tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
-    country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
+    tech_params_filepath = 'parameters/DJ/technology_parameters.xlsx' # SNAKEMAKE INPUT
+    country_params_filepath = 'parameters/DJ/country_parameters.xlsx' # SNAKEMAKE INPUT
 
     water_data = pd.read_excel(tech_params_filepath, sheet_name='Water', index_col='Parameter').squeeze("columns")
     country_params = pd.read_excel(country_params_filepath, index_col='Country')

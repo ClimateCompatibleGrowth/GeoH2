@@ -19,7 +19,7 @@ from utils import check_folder_exists
 
 def main():
     hexagons = gpd.read_file('resources/hex_water_DJ.geojson') # SNAKEMAKE INPUT
-    demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
+    demand_params_filepath = 'parameters/DJ/demand_parameters.xlsx' # SNAKEMAKE INPUT
     demand_center_list = pd.read_excel(demand_params_filepath,
                                     index_col='Demand center',
                                     )

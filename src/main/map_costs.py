@@ -70,7 +70,7 @@ if __name__ == "__main__":
     plant_type = "Ammonia" # -- config call
     # plant_type = "Hydrogen" # -- config call
     hexagons = gpd.read_file("results/hex_cost_components_DJ_2022.geojson")
-    demand_excel_path = 'parameters/demand_parameters.xlsx'
+    demand_excel_path = 'parameters/DJ/demand_parameters.xlsx'
     demand_parameters = pd.read_excel(demand_excel_path,index_col='Demand center')
     demand_centers = demand_parameters.index
     transport_methods = ["trucking", "pipeline"]

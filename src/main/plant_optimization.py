@@ -261,9 +261,9 @@ if __name__ == "__main__":
     # warnings.filterwarnings("ignore")
     logging.basicConfig(level=logging.ERROR)
 
-    transport_params_filepath = 'parameters/transport_parameters.xlsx' # SNAKEMAKE INPUT
-    country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
-    demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
+    transport_params_filepath = 'parameters/DJ/transport_parameters.xlsx' # SNAKEMAKE INPUT
+    country_params_filepath = 'parameters/DJ/country_parameters.xlsx' # SNAKEMAKE INPUT
+    demand_params_filepath = 'parameters/DJ/demand_parameters.xlsx' # SNAKEMAKE INPUT
     country_params = pd.read_excel(country_params_filepath, index_col='Country')
     country_series = country_params.iloc[0]
     demand_params = pd.read_excel(demand_params_filepath, index_col='Demand center')

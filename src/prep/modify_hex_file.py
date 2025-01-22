@@ -85,7 +85,7 @@ def update_hexagons(hexagons, hexagon_path):
 
 def main():
     hexagon_path = "data/hex_final_DJ.geojson" # SNAKEMAKE INPUT
-    country_parameters = pd.read_excel("parameters/country_parameters.xlsx",
+    country_parameters = pd.read_excel("parameters/DJ/country_parameters.xlsx",
                                         index_col='Country') # SNAKEMAKE INPUT
     hexagons = gpd.read_file(hexagon_path) 
     world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres')) # may need to switch to higher res

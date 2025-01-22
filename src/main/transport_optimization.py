@@ -85,13 +85,13 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
 def main():
     # plant_type = "Hydrogen" # config call
     plant_type = "Ammonia" # config call
-    tech_params_filepath = 'parameters/technology_parameters.xlsx' # SNAKEMAKE INPUT
-    demand_params_filepath = 'parameters/demand_parameters.xlsx' # SNAKEMAKE INPUT
-    country_params_filepath = 'parameters/country_parameters.xlsx' # SNAKEMAKE INPUT
-    transport_params_filepath = 'parameters/transport_parameters.xlsx' # SNAKEMAKE INPUT
-    pipeline_params_filepath = 'parameters/pipeline_parameters.xlsx' # SNAKEMAKE INPUT
+    tech_params_filepath = 'parameters/DJ/technology_parameters.xlsx' # SNAKEMAKE INPUT
+    demand_params_filepath = 'parameters/DJ/demand_parameters.xlsx' # SNAKEMAKE INPUT
+    country_params_filepath = 'parameters/DJ/country_parameters.xlsx' # SNAKEMAKE INPUT
+    transport_params_filepath = 'parameters/DJ/transport_parameters.xlsx' # SNAKEMAKE INPUT
+    pipeline_params_filepath = 'parameters/DJ/pipeline_parameters.xlsx' # SNAKEMAKE INPUT
     if plant_type == "Hydrogen":
-        conversion_params_filepath = 'parameters/conversion_parameters.xlsx' # SNAKEMAKE INPUT
+        conversion_params_filepath = 'parameters/DJ/conversion_parameters.xlsx' # SNAKEMAKE INPUT
     hexagons = gpd.read_file('data/hex_final_DJ.geojson')
     # Comment line above and uncomment line below for re-runs without
     # complete re-writes
