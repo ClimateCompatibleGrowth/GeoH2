@@ -1,0 +1,9 @@
+name,bus0,bus1,carrier,efficiency,p_nom_extendable,p_min_pu,capital_cost,ramp_limit_up,ramp_limit_down,bus2,efficiency2,p_nom_max
+Electrolysis,Power,Hydrogen,AC,0.74,TRUE,0,3.06E+05,,,,1,1.00E+06
+HydrogenCompression,Hydrogen,HydrogenStorage,Hydrogen,1,TRUE,0,1.49E+05,,,Power,-0.05,1.00E+06
+HydrogenFromStorage,HydrogenStorage,Hydrogen,Hydrogen,1,TRUE,0,1.00E+00,,,,1,1.00E+06
+HB,Power,Ammonia,AC,6.25,TRUE,0.3,2.91E+06,0.4,0.4,Hydrogen,-7.092,1.00E+07
+BatteryInterfaceIn,Power,PowerStorage,AC,0.98,TRUE,0,0,,,,1,1.00E+07
+BatteryInterfaceOut,PowerStorage,Power,AC,0.99,TRUE,0,1.43E+05,,,,1,1.00E+07
+HydrogenFuelCell,Hydrogen,Power,Hydrogen,0.5,TRUE,0,1.07E+06,,,,1,1.00E+06
+PenaltyLink,RampPenalty,RampPenaltyDest,AC,1,TRUE,0,0.00E+00,,,,1,1.00E+06
