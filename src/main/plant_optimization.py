@@ -10,11 +10,11 @@ hydrogen plant capacity.
 """
 
 import atlite
+from copy import deepcopy
 import geopandas as gpd
 import logging
 import numpy as np
 import pandas as pd
-import warnings
 from network import Network, nh3_pyomo_constraints
 
 def get_demand_schedule(quantity, start_date, end_date, transport_state, transport_params_filepath, freq):
@@ -42,7 +42,6 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
         hourly demand profile for pipeline transport.
     '''
     # Schedule for pipeline
-    # -- Should "freq" be a snakemake input somehow? So the user can define the resolution of the whole run?
     index = pd.date_range(start_date, end_date, freq = freq)
     pipeline_hourly_quantity = quantity/index.size
     pipeline_hourly_demand_schedule = pd.DataFrame(pipeline_hourly_quantity, index=index,  columns = ['Demand'])
@@ -92,7 +91,7 @@ def get_water_constraint(n, demand_profile, water_limit):
 
     Parameters
     ----------
-    n : 
+    n : network Object
         network
     demand_profile : pandas DataFrame
         hourly dataframe of hydrogen demand in kg.
@@ -261,52 +260,51 @@ if __name__ == "__main__":
     # warnings.filterwarnings("ignore")
     logging.basicConfig(level=logging.ERROR)
 
-    transport_params_filepath = 'parameters/DJ/transport_parameters.xlsx' # SNAKEMAKE INPUT
-    country_params_filepath = 'parameters/DJ/country_parameters.xlsx' # SNAKEMAKE INPUT
-    demand_params_filepath = 'parameters/DJ/demand_parameters.xlsx' # SNAKEMAKE INPUT
+    transport_params_filepath = str(snakemake.input.transport_parameters)
+    country_params_filepath = str(snakemake.input.country_parameters)
+    demand_params_filepath = str(snakemake.input.demand_parameters )
     country_params = pd.read_excel(country_params_filepath, index_col='Country')
     country_series = country_params.iloc[0]
     demand_params = pd.read_excel(demand_params_filepath, index_col='Demand center')
     demand_centers = demand_params.index
 
-    weather_year = 2022             # snakemake.wildcards.weather_year
-    end_weather_year = 2023         # int(snakemake.wildcards.weather_year)+1
+    weather_year = int(snakemake.wildcards.weather_year)
+    end_weather_year = int(snakemake.wildcards.weather_year)+1
     start_date = f'{weather_year}-01-01'
     end_date = f'{end_weather_year}-01-01'
-    solver = "gurobi" # maybe make this into a snakemake wildcard?
-    generators = { "Wind" : [], "Solar" : []} # -- config call
-    hexagons = gpd.read_file('resources/hex_transport_DJ.geojson') # SNAKEMAKE INPUT
+    solver = str(snakemake.config['solver'])
+    generators = dict(snakemake.config['generators_dict'])
+    hexagons = gpd.read_file(str(snakemake.input.hexagons))
     pipeline_construction = True # snakemake config
 
     # Get a uniform capacity layout for all grid cells. https://atlite.readthedocs.io/en/master/ref_api.html
     # Alycia to double-check we are using the right layout
-    cutout = atlite.Cutout('cutouts/DJ_2022.nc') # SNAKEMAKE INPUT
+    cutout_filepath = f'Cutouts/{snakemake.wildcards.country}_{snakemake.wildcards.weather_year}.nc'
+    cutout = atlite.Cutout(cutout_filepath)
     layout = cutout.uniform_layout()
     profiles = []
     len_hexagons = len(hexagons)
-    water_limit = None # config call
-    freq = "3H" # config call
-    # freq = "H" # config call
+    water_limit = bool(snakemake.config['water_limit'])
+    freq = str(snakemake.config['freq'])
     
     for gen in generators.keys():
          profiles.append(get_generator_profile(gen, cutout, layout, hexagons, freq))
     
     times = profiles[0].time
-    plant_type = "Ammonia" # -- config call
-    # plant_type = "Hydrogen" # -- config call
+    plant_type = str(snakemake.config['plant_type'])
 
     # Loop through all demand centers -- limit this on continental scale
     for demand_center in demand_centers:
         # Store trucking results
         trucking_lcs = np.zeros(len_hexagons)
-        t_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
+        t_generators_capacities = deepcopy(snakemake.config['generators_dict'])
         t_electrolyzer_capacities= np.zeros(len_hexagons)
         t_battery_capacities = np.zeros(len_hexagons)
         t_h2_storages= np.zeros(len_hexagons)
         
         # Store pipeline variables
         pipeline_lcs = np.zeros(len_hexagons)
-        p_generators_capacities = { "Wind" : [], "Solar" : []} # snakemake config
+        p_generators_capacities = deepcopy(snakemake.config['generators_dict'])
         p_electrolyzer_capacities= np.zeros(len_hexagons)
         p_battery_capacities = np.zeros(len_hexagons)
         p_h2_storages= np.zeros(len_hexagons)
@@ -322,7 +320,7 @@ if __name__ == "__main__":
         for i in range(len_hexagons):
             trucking_state = hexagons.loc[i, f'{demand_center} trucking state']
             gen_index = 0
-            generators = { "Wind" : [], "Solar" : []} # -- config call
+            generators = deepcopy(snakemake.config['generators_dict'])
             
             # Get the demand schedule for both pipeline and trucking transport
             trucking_demand_schedule, pipeline_demand_schedule =\
@@ -340,11 +338,12 @@ if __name__ == "__main__":
                 elif plant_type == "Ammonia":
                     potential = profiles[gen_index].sel(hexagon=i, time=trucking_demand_schedule.index)
                 # -- Eventually make a for loop - we can change the theo_turbines name to be Wind
+                gen_capacity = int(snakemake.config['gen_capacity'][f'{gen.lower()}'])
                 if gen == "Wind":
                     # -- We'll need to remove this hard-coded 4 eventually CONFIG FILE - 4 MW turbine in spatial data prep
-                    max_capacity = hexagons.loc[i,'theo_turbines']*4
+                    max_capacity = hexagons.loc[i,'theo_turbines']*gen_capacity
                 elif gen == "Solar":
-                    max_capacity = hexagons.loc[i,'theo_pv']
+                    max_capacity = hexagons.loc[i,'theo_pv']*gen_capacity
                 # -- Eventually move loops to something like this so we don't have ifs - max_capacity = hexagons.loc[i, gen] * SNAKEMAKE_CONFIG_GEN_SIZE
                 
                 generators[gen].append(potential)
@@ -361,8 +360,8 @@ if __name__ == "__main__":
                     network.set_network(trucking_demand_schedule, times, country_series)
 
                     # Check for water constraint before any solving occurs
-                    if water_limit != None:
-                        water_constraint = get_water_constraint(network.n, trucking_demand_schedule, water_limit)
+                    if water_limit != False:
+                        water_constraint = get_water_constraint(network, trucking_demand_schedule, water_limit)
                         if water_constraint == False:
                             print('Not enough water to meet demand!')
                             trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
@@ -401,14 +400,14 @@ if __name__ == "__main__":
                         network.set_network(pipeline_demand_schedule, times, country_series)
 
                         # Check for water constraint before any solving occurs
-                        if water_limit != None:
-                            water_constraint = get_water_constraint(network.n, pipeline_demand_schedule, water_limit)
+                        if water_limit != False:
+                            water_constraint = get_water_constraint(network, pipeline_demand_schedule, water_limit)
                             if water_constraint == False:
                                 print('Not enough water to meet demand!')
-                                trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
-                                t_h2_storages[i] = np.nan
+                                pipeline_lcs[i], generators_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], \
+                                p_h2_storages[i] = np.nan
                                 for gen, capacity in generators_capacities.items():
-                                    t_generators_capacities[gen].append(np.nan)
+                                    p_generators_capacities[gen].append(np.nan)
                                 continue
 
                         network.set_generators_in_network(country_series)
@@ -426,21 +425,22 @@ if __name__ == "__main__":
                         for gen, capacity in generators_capacities.items():
                             p_generators_capacities[gen].append(capacity)
 
-                    # If construction is false, you can't transport it - everything gets nan UNLESS you're in the demand centre hexagon
+                    # If construction is false, you can't transport it
+                    # Everything gets nan UNLESS in the demand centre hexagon
                     else:
                         # -- Demand location has trucking state as None, this is an easy check
                         if trucking_state == "None":
                             network.set_network(pipeline_demand_schedule, times, country_series)
 
                             # Check for water constraint before any solving occurs
-                            if water_limit != None:
-                                water_constraint = get_water_constraint(network.n, pipeline_demand_schedule, water_limit)
+                            if water_limit != False:
+                                water_constraint = get_water_constraint(network, pipeline_demand_schedule, water_limit)
                                 if water_constraint == False:
                                     print('Not enough water to meet demand!')
-                                    trucking_lcs[i], generators_capacities, t_electrolyzer_capacities[i], t_battery_capacities[i], \
-                                    t_h2_storages[i] = np.nan
+                                    pipeline_lcs[i], generators_capacities, p_electrolyzer_capacities[i], p_battery_capacities[i], \
+                                    p_h2_storages[i] = np.nan
                                     for gen, capacity in generators_capacities.items():
-                                        t_generators_capacities[gen].append(np.nan)
+                                        p_generators_capacities[gen].append(np.nan)
                                     continue
 
                             network.set_generators_in_network(country_series)
@@ -462,7 +462,7 @@ if __name__ == "__main__":
                             for gen in p_generators_capacities.keys():
                                 p_generators_capacities[gen].append(np.nan)
                             if plant_type == "Ammonia": 
-                                t_nh3_storages[1] = np.nan
+                                p_nh3_storages[1] = np.nan
                 
         # Updating trucking-based results in hexagon file
         for gen, capacities in t_generators_capacities.items():
@@ -485,4 +485,4 @@ if __name__ == "__main__":
             hexagons[f'{demand_center} pipeline NH3 storage capacity'] = p_nh3_storages
 
 
-    hexagons.to_file('resources/hex_lc_DJ.geojson', driver='GeoJSON', encoding='utf-8')
+    hexagons.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8')

@@ -1,112 +1,136 @@
-configfile: "config.yaml"
+configfile: 'config.yaml'
 
 wildcard_constraints:
     # ISO alpha-2 country code
-    country="[A-Z]{2}",
+    country = '[A-Z]{2}',
     # ERA5 weather year (1940-2023)
-    weather_year="(19[4-9]\d|20[0-1]\d|202[0-3])",
+    weather_year = '(19[4-9]\d|20[0-1]\d|202[0-3])',
 
 # rule to delete all necessary files to allow reruns
 rule clean:
-    shell: 'rm -r Cutouts/*.nc Data/*.geojson Resources/*.geojson Results/*.geojson temp/*.nc Results/*.csv Plots/'
+    shell: 'rm -r cutouts/*.nc data/*.geojson resources/*.geojson results/*.geojson temp/*.nc results/*.csv plots/'
     
 # bulk run rule to run all countries and years listed in config file
-rule calculate_all_countries_and_years_total_hydrogen_costs:
+rule optimise_all:
    input:
-        expand('Results/hex_total_cost_{country}_{weather_year}.geojson',
-        **config["scenario"]
+        expand('results/hex_total_cost_{country}_{weather_year}.geojson',
+        **config['scenario']
         ),
         
 # bulk run rule to map all countries and years listed in config file
-rule map_all_countries_and_years:
+rule map_all:
    input:
-       expand('Plots/{country}_{weather_year}',
-        **config["scenario"]
+       expand('plots/{country}_{weather_year}',
+        **config['scenario']
         ),
 
-rule assign_country:
+rule prep_main:
     input:
-        "Data/hex_final_{country}.geojson",
+        hexagons = 'data/hex_final_{country}.geojson',
+        country_parameters = expand('parameters/{country}/{plant_type}/country_parameters.xlsx', 
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"])
     output:
-        "Data/hexagons_with_country_{country}.geojson",
+        'data/hexagons_with_country_{country}.geojson',
     script:
-        "Scripts/assign_country.py"
+        'src/prep/main.py'
         
 rule get_weather_data:
     input:
-        hexagons = "Data/hexagons_with_country_{country}.geojson",
+        hexagons = 'data/hexagons_with_country_{country}.geojson',
     output:
-        "Cutouts/{country}_{weather_year}.nc",
+        'cutouts/{country}_{weather_year}.nc',
     script:
-        'Scripts/get_weather_data.py'
+        'src/prep/get_weather_data.py'
 
-rule optimize_transport_and_conversion:
+rule transport_optimization:
     input:
-        hexagons = 'Data/hexagons_with_country_{country}.geojson',
-        technology_parameters = "Parameters/technology_parameters.xlsx",
-        demand_parameters = 'Parameters/demand_parameters.xlsx',
-        country_parameters = 'Parameters/country_parameters.xlsx',
-        conversion_parameters = "Parameters/conversion_parameters.xlsx",
-        transport_parameters = "Parameters/transport_parameters.xlsx",
-        pipeline_parameters = "Parameters/pipeline_parameters.xlsx"
+        hexagons = 'data/hexagons_with_country_{country}.geojson',
+        technology_parameters = expand('parameters/{country}/{plant_type}/technology_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        demand_parameters = expand('parameters/{country}/{plant_type}/demand_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        country_parameters = expand('parameters/{country}/{plant_type}/country_parameters.xlsx', 
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        transport_parameters = expand('parameters/{country}/{plant_type}/transport_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        pipeline_parameters = expand('parameters/{country}/{plant_type}/pipeline_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"])
     output:
-        'Resources/hex_transport_{country}.geojson'
+        'resources/hex_transport_{country}.geojson'
     script:
-        'Scripts/optimize_transport_and_conversion.py'
+        'src/main/transport_optimization.py'
 
 rule calculate_water_costs:
     input:
-        technology_parameters = "Parameters/technology_parameters.xlsx",
-        country_parameters = 'Parameters/country_parameters.xlsx',
-        hexagons = 'Resources/hex_transport_{country}.geojson'
+        technology_parameters = expand('parameters/{country}/{plant_type}/technology_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        country_parameters = expand('parameters/{country}/{plant_type}/country_parameters.xlsx', 
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        hexagons = 'resources/hex_transport_{country}.geojson'
     output:
-        'Resources/hex_water_{country}.geojson'
+        'resources/hex_water_{country}.geojson'
     script:
-        'Scripts/water_cost.py'
-        
+        'src/main/water_cost.py'
 
-rule optimize_hydrogen_plant:
+rule plant_optimization:
     input:
-        transport_parameters = "Parameters/transport_parameters.xlsx",
-        country_parameters = 'Parameters/country_parameters.xlsx',
-        demand_parameters = 'Parameters/demand_parameters.xlsx',
-        cutout = "Cutouts/{country}_{weather_year}.nc",
-        hexagons = 'Resources/hex_water_{country}.geojson'
+        transport_parameters = expand('parameters/{country}/{plant_type}/transport_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        country_parameters = expand('parameters/{country}/{plant_type}/country_parameters.xlsx', 
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        demand_parameters = expand('parameters/{country}/{plant_type}/demand_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        hexagons = 'resources/hex_water_{country}.geojson'
     output:
-        'Resources/hex_lcoh_{country}_{weather_year}.geojson'
+        'resources/hex_lc_{country}_{weather_year}.geojson'
     script:
-        'Scripts/optimize_hydrogen_plant.py'
+        'src/main/plant_optimization.py'
 
-rule calculate_total_hydrogen_cost:
+rule calculate_total_costs:
     input:
-        hexagons = 'Resources/hex_lcoh_{country}_{weather_year}.geojson',
-        demand_parameters = 'Parameters/demand_parameters.xlsx'
+        hexagons = 'resources/hex_lc_{country}_{weather_year}.geojson',
+        demand_parameters = expand('parameters/{country}/{plant_type}/demand_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"])
     output:
-        'Results/hex_total_cost_{country}_{weather_year}.geojson'
+        'results/hex_total_cost_{country}_{weather_year}.geojson'
     script:
-        'Scripts/total_hydrogen_cost.py'
+        'src/main/total_costs.py'
 
 rule calculate_cost_components:
     input:
-        hexagons = 'Results/hex_total_cost_{country}_{weather_year}.geojson',
-        demand_parameters = 'Parameters/demand_parameters.xlsx',
-        country_parameters = 'Parameters/country_parameters.xlsx',
-        stores_parameters = 'Parameters/Basic_H2_plant/stores.csv',
-        storage_parameters = 'Parameters/Basic_H2_plant/storage_units.csv',
-        links_parameters = 'Parameters/Basic_H2_plant/links.csv',
-        generators_parameters = 'Parameters/Basic_H2_plant/generators.csv'
+        hexagons = 'results/hex_total_cost_{country}_{weather_year}.geojson',
+        demand_parameters = expand('parameters/{country}/{plant_type}/demand_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"]),
+        country_parameters = expand('parameters/{country}/{plant_type}/country_parameters.xlsx', 
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"])
     output:
-        'Results/hex_cost_components_{country}_{weather_year}.geojson',
-        'Results/hex_cost_components_{country}_{weather_year}.csv'
+        'results/hex_cost_components_{country}_{weather_year}.geojson',
+        'results/hex_cost_components_{country}_{weather_year}.csv'
     script:
-        'Scripts/costs_by_component.py'
+        'src/main/costs_by_component.py'
 
 rule map_costs:
     input:
-        hexagons = 'Results/hex_cost_components_{country}_{weather_year}.geojson',
-        demand_parameters = 'Parameters/demand_parameters.xlsx'
+        hexagons = 'results/hex_cost_components_{country}_{weather_year}.geojson',
+        demand_parameters = expand('parameters/{country}/{plant_type}/demand_parameters.xlsx',
+                                        plant_type=config["plant_type"].lower(), 
+                                        country=config["scenario"]["country"])
     output:
-        directory('Plots/{country}_{weather_year}')
+        directory('plots/{country}_{weather_year}')
     script:
-        'Scripts/map_costs.py'
+        'src/main/map_costs.py'
 

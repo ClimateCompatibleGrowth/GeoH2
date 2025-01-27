@@ -18,14 +18,13 @@ import pandas as pd
 from utils import check_folder_exists
 
 def main():
-    hexagons = gpd.read_file('resources/hex_water_DJ.geojson') # SNAKEMAKE INPUT
-    demand_params_filepath = 'parameters/DJ/demand_parameters.xlsx' # SNAKEMAKE INPUT
+    hexagons = gpd.read_file(str(snakemake.input.hexagons))
+    demand_params_filepath = str(snakemake.input.demand_parameters)
     demand_center_list = pd.read_excel(demand_params_filepath,
                                     index_col='Demand center',
                                     )
     demand_centers = demand_center_list.index
-    plant_type = "Hydrogen" # config file
-    plant_type = "Ammonia" # config file
+    plant_type = str(snakemake.config['plant_type'])
 
     check_folder_exists("results")
 
@@ -55,7 +54,7 @@ def main():
                                     hexagons.loc[i, f'{demand_center} pipeline total cost']
                                     ])
             
-    hexagons.to_file("results/hex_total_cost_DJ_2022.geojson", driver='GeoJSON', encoding='utf-8')
+    hexagons.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8')
 
 if __name__ == "__main__":
     main()

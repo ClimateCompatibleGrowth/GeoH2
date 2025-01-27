@@ -67,10 +67,9 @@ def plot_and_save(crs, hexagons, name, legend_kwds, output_folder, figsize=(10,5
     plt.close()
 
 if __name__ == "__main__":
-    plant_type = "Ammonia" # -- config call
-    # plant_type = "Hydrogen" # -- config call
-    hexagons = gpd.read_file("results/hex_cost_components_DJ_2022.geojson")
-    demand_excel_path = 'parameters/DJ/demand_parameters.xlsx'
+    plant_type = str(snakemake.config['plant_type'])
+    hexagons = gpd.read_file(str(snakemake.input.hexagons))
+    demand_excel_path = str(snakemake.input.demand_parameters)
     demand_parameters = pd.read_excel(demand_excel_path,index_col='Demand center')
     demand_centers = demand_parameters.index
     transport_methods = ["trucking", "pipeline"]
@@ -85,9 +84,9 @@ if __name__ == "__main__":
     central_lat = (min_lat + max_lat)/2
 
     crs = ccrs.Orthographic(central_longitude = central_lon, central_latitude= central_lat)
-    generators = {'Solar' : [], 'Wind' : []} # config call
+    generators = dict(snakemake.config['generators_dict'])
 
-    output_folder = 'plots/DJ_2022'
+    output_folder = str(snakemake.output)
     check_folder_exists(output_folder)
 
     for demand_center in demand_centers:

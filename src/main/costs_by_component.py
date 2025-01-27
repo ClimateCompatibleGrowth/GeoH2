@@ -16,32 +16,31 @@ from geopy.geocoders import Photon
 from functions import CRF
 
 # Load hexagons
-hexagons = gpd.read_file("results/hex_total_cost_DJ_2022.geojson") # snakemake config
-generators = {'Solar' : [], 'Wind' : []} # config call
+hexagons = gpd.read_file(str(snakemake.input.hexagons))
+generators = dict(snakemake.config['generators_dict'])
 
-plant_type = "Ammonia" # -- config call
-# plant_type = "Hydrogen" # -- config call
+plant_type = str(snakemake.config['plant_type'])
 
 # Load necessary parameters
-demand_excel_path = 'parameters/demand_parameters.xlsx' # snakemake config
+demand_excel_path = str(snakemake.input.demand_parameters)
 demand_parameters = pd.read_excel(demand_excel_path, index_col='Demand center')
-country_excel_path = 'parameters/country_parameters.xlsx' # snakemake config
+country_excel_path = str(snakemake.input.country_parameters)
 country_parameters = pd.read_excel(country_excel_path, index_col='Country')
 if plant_type == "Hydrogen":
-    storage_csv_path = 'parameters/basic_h2_plant/storage_units.csv' # Battery # snakemake config
+    storage_csv_path = 'parameters/basic_h2_plant/storage_units.csv' # Battery
     storage_parameters = pd.read_csv(storage_csv_path, index_col='name')
-    stores_csv_path = 'parameters/basic_h2_plant/stores.csv' # H2 storage # snakemake config
+    stores_csv_path = 'parameters/basic_h2_plant/stores.csv' # H2 storage 
     stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
-    links_csv_path = 'parameters/basic_h2_plant/links.csv' # Electrolyzer # snakemake config
+    links_csv_path = 'parameters/basic_h2_plant/links.csv' # Electrolyzer 
     links_parameters = pd.read_csv(links_csv_path, index_col='name')
-    generators_csv_path = 'parameters/basic_h2_plant/generators.csv' # Solar and generator # snakemake config
+    generators_csv_path = 'parameters/basic_h2_plant/generators.csv' # Solar and generator 
     generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
 elif plant_type == "Ammonia":
-    stores_csv_path = 'parameters/basic_nh3_plant/stores.csv' # H2 storage # snakemake config
+    stores_csv_path = 'parameters/basic_nh3_plant/stores.csv' # H2 storage 
     stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
-    links_csv_path = 'parameters/basic_nh3_plant/links.csv' # Electrolyzer # snakemake config
+    links_csv_path = 'parameters/basic_nh3_plant/links.csv' # Electrolyzer 
     links_parameters = pd.read_csv(links_csv_path, index_col='name')
-    generators_csv_path = 'parameters/basic_nh3_plant/generators.csv' # Solar and generator # snakemake config
+    generators_csv_path = 'parameters/basic_nh3_plant/generators.csv' # Solar and generator 
     generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
 
 
@@ -113,5 +112,5 @@ for demand_center in demand_centers:
                 hexagons[f'{demand_center} {transport_method} {generator_lower} costs']/ \
                     demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
-hexagons.to_file('results/hex_cost_components_DJ_2022.geojson', driver='GeoJSON', encoding='utf-8') # snakemake config
-hexagons.to_csv('results/hex_cost_components_DJ_2022.csv', encoding='latin-1') # snakemake config
+hexagons.to_file(snakemake.output[0], driver='GeoJSON', encoding='utf-8') # snakemake config
+hexagons.to_csv(snakemake.output[1], encoding='latin-1') # snakemake config

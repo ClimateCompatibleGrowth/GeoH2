@@ -83,20 +83,15 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
     return cost
 
 def main():
-    # plant_type = "Hydrogen" # config call
-    plant_type = "Ammonia" # config call
-    tech_params_filepath = 'parameters/DJ/technology_parameters.xlsx' # SNAKEMAKE INPUT
-    demand_params_filepath = 'parameters/DJ/demand_parameters.xlsx' # SNAKEMAKE INPUT
-    country_params_filepath = 'parameters/DJ/country_parameters.xlsx' # SNAKEMAKE INPUT
-    transport_params_filepath = 'parameters/DJ/transport_parameters.xlsx' # SNAKEMAKE INPUT
-    pipeline_params_filepath = 'parameters/DJ/pipeline_parameters.xlsx' # SNAKEMAKE INPUT
+    plant_type = str(snakemake.config['plant_type'])
+    tech_params_filepath = str(snakemake.input.technology_parameters)
+    demand_params_filepath = str(snakemake.input.demand_parameters)
+    country_params_filepath = str(snakemake.input.country_parameters)
+    transport_params_filepath = str(snakemake.input.transport_parameters)
+    pipeline_params_filepath = str(snakemake.input.pipeline_parameters)
     if plant_type == "Hydrogen":
-        conversion_params_filepath = 'parameters/DJ/conversion_parameters.xlsx' # SNAKEMAKE INPUT
-    hexagons = gpd.read_file('data/hex_final_DJ.geojson')
-    # Comment line above and uncomment line below for re-runs without
-    # complete re-writes
-    # hexagons = gpd.read_file('results/hex.geojson')
-
+        conversion_params_filepath = f'parameters/{snakemake.wildcards.country}/{snakemake.config["plant_type"].lower()}/conversion_parameters.xlsx'
+    hexagons = gpd.read_file(str(snakemake.input.hexagons))
 
     infra_data = pd.read_excel(tech_params_filepath,
                            sheet_name='Infra',
@@ -111,8 +106,8 @@ def main():
                                         index_col='Country')
     
 
-    needs_pipeline_construction = True # CONFIG YAML
-    needs_road_construction = True # CONFIG YAML
+    needs_pipeline_construction = bool(snakemake.config["transport"]["pipeline_construction"])
+    needs_road_construction = bool(snakemake.config["transport"]["road_construction"])
 
     long_road_capex = infra_data.at['Long road','CAPEX']
     short_road_capex = infra_data.at['Short road','CAPEX']
@@ -289,7 +284,7 @@ def main():
             hexagons[f'{demand_center} pipeline transport costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
         hexagons[f'{demand_center} trucking state'] = trucking_states
 
-    hexagons.to_file('resources/hex_transport_DJ.geojson', driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
+    hexagons.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8') # SNAKEMAKE OUTPUT
 
 if __name__ == "__main__":
     main()

@@ -70,7 +70,7 @@ def prepare_cutout(min_lon, min_lat, max_lon, max_lat, start_date, end_date):
         End date for weather collection in 'YYYY-MM-DD' format
     """
     cutout = atlite.Cutout(
-        path="cutouts/country_weather_year.nc", # SNAKEMAKE OUTPUT CUTOUT
+        path=str(snakemake.output),
         module="era5",
         x=slice(min_lon, max_lon),
         y=slice(min_lat, max_lat),
@@ -80,16 +80,15 @@ def prepare_cutout(min_lon, min_lat, max_lon, max_lat, start_date, end_date):
     cutout.prepare(tmpdir="temp", show_progress=True) # TEMPDIR DEFINITION IS NEW TO FIX ERROR
 
 def main():
-    hexagon_path = "data/hex_final_DJ.geojson" # SNAKEMAKE INPUT
-    hexagons = gpd.read_file(hexagon_path) 
+    hexagons = gpd.read_file(str(snakemake.input.hexagons))
     
     # Displays information on process as it runs.
     logging.basicConfig(level=logging.INFO)
 
     min_lon, min_lat, max_lon, max_lat = calculate_coords(hexagons)
 
-    start_weather_year = 2022 # SNAKEMAKE WILDCARDS
-    end_weather_year = 2023 # SNAKEMAKE WILDCARDS (start_weather_year+1)
+    start_weather_year = int(snakemake.wildcards.weather_year)
+    end_weather_year = int(snakemake.wildcards.weather_year)+1
     start_date = f'{start_weather_year}-01-01'
     end_date = f'{end_weather_year}-01-01'
 
