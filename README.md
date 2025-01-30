@@ -75,7 +75,7 @@ Required input parameters include the spatial area of interest, total annual dem
 
 - **Basic H2 plant:** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
 
-> [!NECESSARY]
+> [!IMPORTANT] Necessary
 > The excel files must be kept in either a "hydrogen" or "ammonia" folder within another folder with the title matching the Country ISO Code. From the use case of Djibouti, we have them in a folder titled "DJ" and two folders with "hydrogen" and "ammonia" excel files in.
 
 - **Conversion parameters:** `conversion_parameters.xlsx` includes parameters related to converting between states of hydrogen.
