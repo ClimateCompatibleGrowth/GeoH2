@@ -1,7 +1,7 @@
-# GEOH2
-**Geospatial analysis of hydrogen production costs**
+# GEOX
+**Geospatial analysis of hydrogen or ammonia production costs**
 
-GEOH2 calculates the locational cost of green hydrogen production, storage, transport, and conversion to meet demand in a specified location. These costs can be compared to current or projected prices for energy and chemical feedstocks in the region to assess the competitiveness of green hydrogen. Currently, different end-uses, such as fertilizer production, export shipping, and steel production, are not modeled.
+GeoX calculates the locational cost of green hydrogen production, storage, transport, and conversion to meet demand in a specified location. These costs can be compared to current or projected prices for energy and chemical feedstocks in the region to assess the competitiveness of green hydrogen. Currently, different end-uses, such as fertilizer production, export shipping, and steel production, are not modeled.
 
 The model outputs the levelized cost of hydrogen (LCOH) at the demand location including production, storage, transport, and conversion costs. 
 
@@ -9,38 +9,38 @@ In the code provided, the specific use case of Namibia is investigated.
 Parameter references for this case are attached.
 However, as the code is written in a generalized way, it is possible to analyse all sorts of regions.
 
-GeoH2 builds upon a preliminary code iteration produced by Leander Müller, available under a CC-BY-4.0 licence: [https://github.com/leandermue/GEOH2](https://github.com/leandermue/GEOH2).
+GeoX builds upon a preliminary code iteration produced by Leander Müller, available under a CC-BY-4.0 licence: [https://github.com/leandermue/GEOH2](https://github.com/leandermue/GEOH2).
 It also integrates code produced by Nick Salmon under an MIT licence: 
 [https://github.com/nsalmon11/LCOH_Optimisation](https://github.com/nsalmon11/LCOH_Optimisation)
+
 ___
 
 # Setup instructions
 
 ## Clone the repository
-First, clone the GeoH2 repository using `git`. 
+First, clone the GeoX repository using `git`. 
 
 `... % git clone https://github.com/ClimateCompatibleGrowth/GeoH2.git`
 
 ## Environment setup
 The python package requirements are in the `environment.yaml` file. You can install these requirements in a new environment using `mamba` package and environment manager (installation instructions [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)): 
 
-` .../GEOH2 % mamba env create -f environment.yaml`
+` .../GEOX % mamba env create -f environment.yaml`
 
 Then activate this new environment using
 
-`.../GEOH2 % mamba activate geoh2`
+`.../GEOX % mamba activate geox`
 
 ## CDS API setup
 The `get_weather_data` rule downloads the relevant historical weather data from the ERA-5 reanalysis dataset using [Atlite](https://atlite.readthedocs.io/en/latest/) to create a cutout. For this process to work, you need to register and set up your CDS API key as described on the [Climate Data Store website](https://cds.climate.copernicus.eu/api-how-to).
 
-**Note:** Ensure the API key and URL are affiliated with CDS-Beta.
-
 ## Solver setup
-For the `optimize_hydrogen_plant` rule to work, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation. 
+For the `plant_optimization` rule to work, you will need a solver installed on your computer. You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation. 
 
-In `Scripts/optimize_hydrogen_plant.py` line 160, the solver is set to `gurobi`. This must be changed if you choose to use a different solver.
+In `scripts/plant_optimization.py` line 160, the solver is set to `gurobi`. This must be changed if you choose to use a different solver.
 
-**Note**: Snakemake uses Cbc, which will be installed upon environment setup. To check, activate your environment and enter `mamba list` in your terminal for the environment's list of packages.
+> [!NOTE]
+> Snakemake uses Cbc, which will be installed upon environment setup. To check, activate your environment and enter `mamba list` in your terminal for the environment's list of packages.
 ___
 
 # Preparing input data
@@ -64,15 +64,19 @@ The hexagon file needs to filled with the following attributes:
   - theo_pv: Theoretical potential of standarized PV plants       --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
   - theo_wind: Theoretical potential of standarized wind turbines     --> Possible to investigate with: https://github.com/FZJ-IEK3-VSA/glaes
   
-Once you have created a hexagon file with these features, save it in the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`. 
+Once you have created a hexagon file with these features, save it in the `data` folder as `hex_final_[COUNTRY ISO CODE].geojson`. 
 
-**Note:** `COUNTRY ISO CODE` is the country's ISO standard 2-letter abbreviation.
+> [!IMPORTANT]
+> `COUNTRY ISO CODE` is the country's ISO standard 2-letter abbreviation.
   
 ## Input parameter Excel files
 
-Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the Parameters folder.
+Required input parameters include the spatial area of interest, total annual demand for hydrogen, and prices and cost of capital for infrastructure investments. These values can be either current values or projected values for a single snapshot in time. The parameter values for running the model can be specified in a set of Excel files in the `parameters` folder.
 
 - **Basic H2 plant:** in this folder, there are several csv files containing the global parameters for optimizing the plant design. All power units are MW and all energy units are MWh. For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
+
+> [!NECESSARY]
+> The excel files must be kept in either a "hydrogen" or "ammonia" folder within another folder with the title matching the Country ISO Code. From the use case of Djibouti, we have them in a folder titled "DJ" and two folders with "hydrogen" and "ammonia" excel files in.
 
 - **Conversion parameters:** `conversion_parameters.xlsx` includes parameters related to converting between states of hydrogen.
 
@@ -96,23 +100,36 @@ This repository uses [Snakemake](https://snakemake.readthedocs.io/en/stable/) to
 ## Wildcards
 Wildcards specify the data used in the workflow. This workflow uses two wildcards: `country` (an ISO standard 2-letter abbreviation) and `weather_year` (a 4-digit year between 1940 and 2023 included in the ERA5 dataset).
 
-## Config file
+## Config file - to be modified by user
 
-High-level workflow settings are controlled in the config file: `config.yaml`. 
+High-level workflow settings are controlled in the config file: `config.yaml`.
 
 Multiple wildcard values are specified in the `scenario` section. These can be changed to match the `country` and `weather_year` you are analysing.
 
-Renewable generators considered for hydrogen plant construction are included in the `generators` section.
+The amount of years you want to check should be added into `years_to_check`.
+
+You can run for an ammonia or a hydrogen plant optimisation and you need to specify which one in `plant_type`.
+
+The frequency .... should be changed in `freq` to match the plant type that you'll be using.
+
+Renewable generators considered for plant construction are included in the `generators_dict` section. Currently, only Solar and Wind can be considered.
+
+Dependent on which generators you are using, you can change the `panel` value for Solar and the `turbine` value for Wind.
+
+In the `gen_capacity` section, you will find both `solar` and `wind`, which can be changed to match values that you are analysing.
+
+You will have to set the `solver` to the solver name that you are going to be using. You will also have to set whether a `water_limit` is `True` or `False`.
 
 In the `transport` section, `pipeline_construction` and `road_construction` can be switched from `True` to `False`, as needed.
 
- **Note:** `country` and `weather_year` can be a list of more than one, depending on how many countries and years you are analysing.
+> [!NOTE]
+> `country` and `weather_year` can be a list of more than one, depending on how many countries and years you are analysing. You must ensure all other files that are needed for each country run are where they should be.
 
 ## Rules
 
-Rules can be run multiple ways using Snakemake. Below, you will be able to run rules by entering the rule name or their output in the terminal. Snakemake will run all necessary rules and their corresponding scripts to create an output. While all rules are discussed here for completeness, **you do not need to enter each rule one-by-one and can simply enter the output you're interested in or one of the run all rules.** Rules are defined in the `Snakefile`.
+Rules can be run multiple ways using Snakemake. Below, you will be able to run rules by entering the rule name or their output in the terminal. Snakemake will run all necessary rules and their corresponding scripts to create an output. While all rules are discussed here for completeness, **you do not need to enter each rule one-by-one and can simply enter the output you're interested in or one of the run optimisation or mapping rules.** Rules are defined in the `Snakefile`.
 
-Snakemake requires a specification of the `number of cores to be used`; this can be up to 4.
+Snakemake requires a specification of the `NUMBER OF CORES TO BE USED`; this can be up to 4.
 
 ### Run time
 
@@ -126,95 +143,101 @@ All other rules take a few seconds to run.
 
 ### Rule to remove all files
 
-**Note:** This rule does not work on Windows, as of yet. Please manually remove the files you need to.
+> [!WARNING]
+> This rule does not work on Windows, as of yet. Please manually remove the files you need to.
 
-This rule is important to know first, as it will remove all the files that the below rules will create as well as the file you initially saved into the `Data` folder as `hex_final_[COUNTRY ISO CODE].geojson`.
+This rule is important to know first, as it will remove all the files that the below rules will create as well as the file you initially saved into the `data` folder as `hex_final_[COUNTRY ISO CODE].geojson`.
 
 This is to allow for a quicker transition to analyse more data and to clear up space. Make sure you save the created files that you need elsewhere before running the following rule into the terminal:
 ```
 snakemake -j [NUMBER OF CORES TO BE USED] clean
 ```
 
-### Run all rules
+### Run optimisation or mapping rules
 
-This section can be used to run all rules, without having to run exact output files. If any files are changed after a completed run, the same command can be used again and Snakemake will only run the necessary scripts to ensure the results are up to date.
+This section can be used to run most rules, without having to run exact output files. If any files are changed after a completed run, the same command can be used again and Snakemake will only run the necessary scripts to ensure the results are up to date.
 
-The total hydrogen cost for all scenarios can be run by entering the following rule into the terminal:
+The total hydrogen cost for all scenarios can be run by entering the following rule into the terminal (make sure you have the necessary weather file(s) in the cutouts folder before running - you might have to run the get_weather_data rule first to obtain any missing weather files):
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] calculate_all_countries_and_years_total_hydrogen_costs
+snakemake -j [NUMBER OF CORES TO BE USED] optimise_all
 ```
 Similarly, you can map hydrogen costs for all scenarios with the following rule:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] map_all_countries_and_years
+snakemake -j [NUMBER OF CORES TO BE USED] map_all
 ```
 
-### `assign_country` rule
+### Preparation section
 
-Assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country.
+#### `prep_main` rule
+
+This file will assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country. As well as, drop any duplicated hexagons that do not belong to the country that is be run for.
 
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Data/hexagons_with_country_[COUNTRY ISO CODE].geojson
+snakemake -j [NUMBER OF CORES TO BE USED] run_prep
 ```
+> [!TIP]
+> Run this rule when you need to need to run the `get_weather_data` rule next. Otherwise just run the `optimize_all` rule.
 
-### `get_weather_data` rule
-
+#### `get_weather_data` rule
+> [!IMPORTANT]
+> Make sure you have run the `prep_main` rule before running this rule as it needs the outputted file as an input.
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Cutouts/[COUNTRY ISO CODE]_[WEATHER YEAR].nc
+snakemake -j [NUMBER OF CORES TO BE USED] run_weather
 ```
-
-### `optimize_transport_and_conversion` rule
+### Main section
+#### `optimize_transport` rule
 
 Calculate the cost of the optimal hydrogen transportation and conversion strategy from each hexagon to each demand center, using both pipelines and road transport, using parameters from `technology_parameters.xlsx`, `demand_parameters.xlsx`, and `country_parameters.xlsx`.
 
 You can run this rule by entering the following command in your terminal: 
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Resources/hex_transport_[COUNTRY ISO CODE].geojson
+snakemake -j [NUMBER OF CORES TO BE USED] resources/hex_transport_[COUNTRY ISO CODE].geojson
 ```
 
-### `calculate_water_costs` rule
+#### `calculate_water_costs` rule
 
-Calculate water costs from the ocean and freshwater bodies for hydrogen production in each hexagon using `Parameters/technology_parameters.xlsx` and `Parameters/country_parameters.xlsx`.
+Calculate water costs from the ocean and freshwater bodies for hydrogen production in each hexagon using `parameters/technology_parameters.xlsx` and `parameters/country_parameters.xlsx`.
 
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Resources/hex_water_[COUNTRY ISO CODE].geojson
+snakemake -j [NUMBER OF CORES TO BE USED] resources/hex_water_[COUNTRY ISO CODE].geojson
 ```
 
-### `optimize_hydrogen_plant` rule
+#### `optimize_plant` rule
 
-Design green hydrogen plant to meet the hydrogen demand profile for each demand center for each transportation method to each demand center using the `optimize_hydrogen_plant.py` script. Ensure that you have specified your hydrogen plant parameters in the CSV files in the `Parameters/Basic_H2_plant` folder, your investment parameters in `Parameters/investment_parameters.xlsx`, and your demand centers in `Parameters/demand_parameters.xlsx`.
+Design green hydrogen plant to meet the hydrogen demand profile for each demand center for each transportation method to each demand center using the `optimize_hydrogen_plant.py` script. Ensure that you have specified your hydrogen plant parameters in the CSV files in the `Parameters/Basic_H2_plant` folder, your investment parameters in `parameters/investment_parameters.xlsx`, and your demand centers in `parameters/demand_parameters.xlsx`.
 
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Resources/hex_lcoh_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
+snakemake -j [NUMBER OF CORES TO BE USED] resources/hex_lcoh_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
 ```
 
-### `calculate_total_hydrogen_cost` rule
+#### `calculate_total_cost` rule
 Combine results to find the lowest-cost method of producing, transporting, and converting hydrogen for each demand center.
 
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Results/hex_total_cost_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
+snakemake -j [NUMBER OF CORES TO BE USED] results/hex_total_cost_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
 ```
 
-### `calculate_cost_components` rule
+#### `calculate_cost_components` rule
 
 Calculate the cost for each type of equipment in each polygon. 
 
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Results/hex_cost_components_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
+snakemake -j [NUMBER OF CORES TO BE USED] results/hex_cost_components_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
 ```
 
-### `map_costs` rule
+#### `calculate_map_costs` rule
 
 Visualize the spatial variation in different costs per kilogram of hydrogen.
 
 You can run this rule by entering the following command in your terminal:
 ```
-snakemake -j [NUMBER OF CORES TO BE USED] Plots/[COUNTRY ISO CODE]_[WEATHER YEAR]
+snakemake -j [NUMBER OF CORES TO BE USED] plots/[COUNTRY ISO CODE]_[WEATHER YEAR]
 ```
 ___
 
@@ -233,7 +256,7 @@ ___
 
 # Citation
 
-If you decide to use GeoH2, please kindly cite us using the following: 
+If you decide to use GeoX, please kindly cite us using the following: 
 
 *Halloran, C., Leonard, A., Salmon, N., Müller, L., & Hirmer, S. (2024). 
 GeoH2 model: Geospatial cost optimization of green hydrogen production including storage and transportation. 

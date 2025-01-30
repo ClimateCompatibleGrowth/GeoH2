@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 
 def main():
+    print("Calculations begin...\n")
     hexagons = gpd.read_file(str(snakemake.input.hexagons))
     tech_params_filepath = str(snakemake.input.technology_parameters)
     country_params_filepath = str(snakemake.input.country_parameters)
@@ -39,6 +40,7 @@ def main():
     # Loop through all hexagons
     # Calculating water costs for each hexagon
     for i in range(len(hexagons)):
+        print(f"Calculating water costs for {i+1} of {len(hexagons)}...")
         waterbody_dist = hexagons['waterbody_dist'][i]
         waterway_dist = hexagons['waterway_dist'][i]
         ocean_dist = hexagons['ocean_dist'][i]
@@ -59,6 +61,7 @@ def main():
         
         min_h2o_costs[i] = min(h2o_costs_dom_water_bodies[i], h2o_costs_ocean[i])
 
+    print("\nCalculations complete.\n")
     hexagons['Ocean water costs'] = h2o_costs_ocean
     hexagons['Freshwater costs'] = h2o_costs_dom_water_bodies
     hexagons['Lowest water cost'] = min_h2o_costs

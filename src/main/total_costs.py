@@ -24,16 +24,17 @@ def main():
                                     index_col='Demand center',
                                     )
     demand_centers = demand_center_list.index
-    plant_type = str(snakemake.config['plant_type'])
+    plant_type = str(snakemake.wildcards.plant_type)
 
     check_folder_exists("results")
 
     # Get lowest cost for each transport type
     for demand_center in demand_centers:
-        if plant_type == "Hydrogen":
+        print(f"Calculating total costs for {demand_center} begins...\n")
+        if plant_type == "hydrogen":
             trucking_tranport_costs = hexagons[f'{demand_center} trucking transport and conversion costs']
             pipeline_transport_costs = hexagons[f'{demand_center} pipeline transport and conversion costs']
-        elif plant_type == "Ammonia":
+        elif plant_type == "ammonia":
             trucking_tranport_costs = hexagons[f'{demand_center} trucking transport costs']
             pipeline_transport_costs = hexagons[f'{demand_center} pipeline transport costs']
 
@@ -49,11 +50,13 @@ def main():
 
         # Get the lowest between the trucking and the pipeline options
         for i in range(len(hexagons)):
+            print(f"Calculating total costs for {i+1} of {len(hexagons)}...")
             hexagons.loc[i, f'{demand_center} lowest cost'] = np.nanmin(
                                     [hexagons.loc[i, f'{demand_center} trucking total cost'],
                                     hexagons.loc[i, f'{demand_center} pipeline total cost']
                                     ])
             
+    print("\nCalculations complete.\n")
     hexagons.to_file(str(snakemake.output), driver='GeoJSON', encoding='utf-8')
 
 if __name__ == "__main__":

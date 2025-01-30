@@ -82,6 +82,7 @@ def update_hexagons(hexagons, output_hexagon_path):
         hexagons.to_file(f"{output_hexagon_path}", driver="GeoJSON")
 
 def main():
+    print("Prepping file...")
     country_parameters = pd.read_excel(str(snakemake.input.country_parameters),
                                         index_col='Country')
     hexagons = gpd.read_file(str(snakemake.input.hexagons))
@@ -95,7 +96,7 @@ def main():
     # Finish off with the removing extra hexagons.
     final_hexagons = remove_extra_hexagons(output_hexagon_path, country_parameters)
     update_hexagons(final_hexagons, output_hexagon_path)
-
+    print("File prepped.")
 
 if __name__ == "__main__":
     main()

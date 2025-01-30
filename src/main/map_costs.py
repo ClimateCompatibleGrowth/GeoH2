@@ -67,7 +67,7 @@ def plot_and_save(crs, hexagons, name, legend_kwds, output_folder, figsize=(10,5
     plt.close()
 
 if __name__ == "__main__":
-    plant_type = str(snakemake.config['plant_type'])
+    plant_type = str(snakemake.wildcards.plant_type)
     hexagons = gpd.read_file(str(snakemake.input.hexagons))
     demand_excel_path = str(snakemake.input.demand_parameters)
     demand_parameters = pd.read_excel(demand_excel_path,index_col='Demand center')
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     check_folder_exists(output_folder)
 
     for demand_center in demand_centers:
+        print(f"\nPlotting for {demand_center} begins...")
         # plot lowest LC in each location
         plot_and_save(crs, hexagons, f'{demand_center} lowest cost', 
                     {'label':'LC [euros/kg]'}, output_folder)
@@ -100,7 +101,7 @@ if __name__ == "__main__":
                         {'label':'Production LC [euros/kg]'}, output_folder)
 
             #%% plot transportation costs
-            if plant_type == "Hydrogen":
+            if plant_type == "hydrogen":
                 if transport_method == "trucking":
                     hexagons[f'{demand_center} total {transport_method} costs'] =\
                         hexagons[f'{demand_center} {transport_method} transport and conversion costs']+\
@@ -111,7 +112,7 @@ if __name__ == "__main__":
                 elif transport_method == "pipeline":
                     plot_and_save(crs, hexagons, f'{demand_center} {transport_method} transport and conversion costs', 
                                 {'label':f'{transport_method} cost [euros/kg]'}, output_folder)
-            elif plant_type == "Ammonia":
+            elif plant_type == "ammonia":
                 if transport_method == "trucking":
                     hexagons[f'{demand_center} total {transport_method} costs'] =\
                         hexagons[f'{demand_center} {transport_method} transport costs']+\
@@ -173,4 +174,6 @@ if __name__ == "__main__":
     plot_and_save(crs, hexagons, 'Freshwater costs',
                 {'label':'Water cost [euros/kg H2]'}, output_folder)
 
-    plt.ticklabel_format(style='plain') 
+    plt.ticklabel_format(style='plain')
+
+    print("\nPlotting complete\n")

@@ -1,23 +1,28 @@
 scenario:
   country: ['DJ']
   weather_year: [2022]
-  
-# Can be Hydrogen or Ammonia
-plant_type: 'Hydrogen'
-  
+  # Can be 'hydrogen' or 'ammonia'
+  plant_type: 'hydrogen'
+
+# Change to a number that would be added to the 'weather_year' above and used as
+# the end weather year date
+years_to_check: 1
+# Hydrogen uses 'H' freq and ammonia uses '3H' freq
+freq: 'H'
+
 # Generators
-generators_dict: {'Solar' : [], 'Wind' : []}
+# Additional generators should be added in the same style as Solar and Wind are
+# below
+generators_dict: {'Solar' : [], 'Wind' : [],}
 panel: 'CSi'
 turbine: 'NREL_ReferenceTurbine_2020ATB_4MW'
 gen_capacity:
     solar: 1
     wind: 4
-    
-# Hydrogen uses 'H' freq and Ammonia uses '3H' freq
-freq: 'H'
+
 solver : 'gurobi'
-water_limit: false
+water_limit: False
 
 transport:
-    pipeline_construction: true
-    road_construction: true
+    pipeline_construction: True
+    road_construction: True

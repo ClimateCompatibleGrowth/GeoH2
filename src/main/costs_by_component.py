@@ -19,14 +19,14 @@ from functions import CRF
 hexagons = gpd.read_file(str(snakemake.input.hexagons))
 generators = dict(snakemake.config['generators_dict'])
 
-plant_type = str(snakemake.config['plant_type'])
+plant_type = str(snakemake.wildcards.plant_type)
 
 # Load necessary parameters
 demand_excel_path = str(snakemake.input.demand_parameters)
 demand_parameters = pd.read_excel(demand_excel_path, index_col='Demand center')
 country_excel_path = str(snakemake.input.country_parameters)
 country_parameters = pd.read_excel(country_excel_path, index_col='Country')
-if plant_type == "Hydrogen":
+if plant_type == "hydrogen":
     storage_csv_path = 'parameters/basic_h2_plant/storage_units.csv' # Battery
     storage_parameters = pd.read_csv(storage_csv_path, index_col='name')
     stores_csv_path = 'parameters/basic_h2_plant/stores.csv' # H2 storage 
@@ -35,7 +35,7 @@ if plant_type == "Hydrogen":
     links_parameters = pd.read_csv(links_csv_path, index_col='name')
     generators_csv_path = 'parameters/basic_h2_plant/generators.csv' # Solar and generator 
     generators_parameters = pd.read_csv(generators_csv_path, index_col='name')
-elif plant_type == "Ammonia":
+elif plant_type == "ammonia":
     stores_csv_path = 'parameters/basic_nh3_plant/stores.csv' # H2 storage 
     stores_parameters = pd.read_csv(stores_csv_path, index_col='name')
     links_csv_path = 'parameters/basic_nh3_plant/links.csv' # Electrolyzer 
@@ -49,6 +49,7 @@ elif plant_type == "Ammonia":
 demand_centers = demand_parameters.index
 transport_methods = ['pipeline', 'trucking']
 for demand_center in demand_centers:
+    print(f"\nCalculating for {demand_center} begins...")
     # Get location of demand center
     lat = demand_parameters.loc[demand_center, 'Lat [deg]']
     lon = demand_parameters.loc[demand_center, 'Lon [deg]']
@@ -66,9 +67,9 @@ for demand_center in demand_centers:
     for transport_method in transport_methods:  
         # Work out the cost for each component using the data for the country you are looking at
         # Battery
-        if plant_type == "Hydrogen":
+        if plant_type == "hydrogen":
             capital_cost_battery = storage_parameters.loc['Battery', 'capital_cost']
-        elif plant_type == "Ammonia":
+        elif plant_type == "ammonia":
             capital_cost_battery = stores_parameters.loc['Battery', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} battery costs'] = \
             hexagons[f'{demand_center} {transport_method} battery capacity'] *\
@@ -87,9 +88,9 @@ for demand_center in demand_centers:
                 demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
  
         # H2 Storage
-        if plant_type == "Hydrogen":
+        if plant_type == "hydrogen":
             capital_cost_h2_storage = stores_parameters.loc['Compressed H2 Store', 'capital_cost']
-        elif plant_type == "Ammonia":
+        elif plant_type == "ammonia":
                 capital_cost_h2_storage = stores_parameters.loc['CompressedH2Store', 'capital_cost']
         hexagons[f'{demand_center} {transport_method} H2 storage costs'] = \
             hexagons[f'{demand_center} {transport_method} H2 storage capacity'] *\
@@ -112,5 +113,6 @@ for demand_center in demand_centers:
                 hexagons[f'{demand_center} {transport_method} {generator_lower} costs']/ \
                     demand_parameters.loc[demand_center, 'Annual demand [kg/a]']
 
+print("\nCalculations complete.\n")
 hexagons.to_file(snakemake.output[0], driver='GeoJSON', encoding='utf-8') # snakemake config
 hexagons.to_csv(snakemake.output[1], encoding='latin-1') # snakemake config

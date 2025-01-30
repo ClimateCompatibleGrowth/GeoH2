@@ -51,7 +51,7 @@ class Network:
         if self.n == None:
             self.n = pypsa.Network(override_component_attrs=self._create_override_components())
 
-        if self.type == "Hydrogen":
+        if self.type == "hydrogen":
             self.n.set_snapshots(times)
 
             # Import the design of the H2 plant into the network
@@ -69,7 +69,7 @@ class Network:
             for item in [self.n.links, self.n.stores, self.n.storage_units]:
                 item.capital_cost = item.capital_cost * CRF(country_series['Plant interest rate'], 
                                                             country_series['Plant lifetime (years)'])
-        elif self.type == "Ammonia":
+        elif self.type == "ammonia":
             # Set the time values for the network
             self.n.set_snapshots(demand_profile.index)
             demand_profile['weights'] = 8760 / len(self.n.snapshots)

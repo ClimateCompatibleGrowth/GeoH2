@@ -1,11 +1,11 @@
-name: geoh2
+name: geox
 channels:
   - conda-forge
   - nodefaults
   - bioconda
 
 dependencies:
-  - atlite=0.2.14
+  - atlite=0.3.0
   - cartopy
   - gdal=3
   - geopandas

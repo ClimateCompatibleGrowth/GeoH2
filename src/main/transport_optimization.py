@@ -83,14 +83,14 @@ def calculate_road_construction_cost(distance_to_road, road_capex,
     return cost
 
 def main():
-    plant_type = str(snakemake.config['plant_type'])
+    plant_type = str(snakemake.wildcards.plant_type)
     tech_params_filepath = str(snakemake.input.technology_parameters)
     demand_params_filepath = str(snakemake.input.demand_parameters)
     country_params_filepath = str(snakemake.input.country_parameters)
     transport_params_filepath = str(snakemake.input.transport_parameters)
     pipeline_params_filepath = str(snakemake.input.pipeline_parameters)
-    if plant_type == "Hydrogen":
-        conversion_params_filepath = f'parameters/{snakemake.wildcards.country}/{snakemake.config["plant_type"].lower()}/conversion_parameters.xlsx'
+    if plant_type == "hydrogen":
+        conversion_params_filepath = f'parameters/{snakemake.wildcards.country}/{snakemake.wildcards.plant_type}/conversion_parameters.xlsx'
     hexagons = gpd.read_file(str(snakemake.input.hexagons))
 
     infra_data = pd.read_excel(tech_params_filepath,
@@ -125,6 +125,7 @@ def main():
     # calculate cost of hydrogen state conversion and transportation for demand
     # loop through all demand centers-- limit this on continential scale
     for demand_center in demand_centers:
+        print(f"\nOptimisation for {demand_center} begins...\n")
         # Demand location based variables
         demand_center_lat = demand_center_list.loc[demand_center,'Lat [deg]']
         demand_center_lon = demand_center_list.loc[demand_center,'Lon [deg]']
@@ -143,6 +144,7 @@ def main():
         
         # Loop through all hexagons
         for i in range(len(hexagons)):
+            print(f"Currently optimising {i+1} of {len(hexagons)} hexagons...")
             dist_to_road = hexagons['road_dist'][i]
             hex_geometry = hexagons['geometry'][i]
             dist_to_demand = calculate_dist_to_demand(hex_geometry, demand_center_lat, demand_center_lon)
@@ -153,7 +155,7 @@ def main():
             # If the hexagon contains the demand location
             if hex_geometry.contains(demand_location) == True:
                 # Calculate cost of converting hydrogen to a demand state for local demand (i.e. no transport)
-                if plant_type == "Hydrogen":
+                if plant_type == "hydrogen":
                     if demand_state == 'NH3':
                         trucking_costs[i]=pipeline_costs[i]=h2_conversion_stand(demand_state+'_load',
                                                 annual_demand_quantity,
@@ -174,7 +176,7 @@ def main():
                                                 )[2]/annual_demand_quantity
                         trucking_states[i] = "None"
                         road_construction_costs[i] = 0.
-                elif plant_type == "Ammonia":
+                elif plant_type == "ammonia":
                     trucking_costs[i] = pipeline_costs[i] = 0.
                     trucking_states[i] = "None"
             
@@ -203,7 +205,7 @@ def main():
                                                             road_opex)/annual_demand_quantity
 
                     # Then find cheapest trucking strategy
-                    if plant_type == "Hydrogen":
+                    if plant_type == "hydrogen":
                         trucking_costs[i], trucking_states[i] =\
                             cheapest_trucking_strategy(demand_state,
                                                         annual_demand_quantity,
@@ -214,7 +216,7 @@ def main():
                                                         conversion_params_filepath,
                                                         transport_params_filepath,
                                                         )
-                    elif plant_type == "Ammonia":
+                    elif plant_type == "ammonia":
                         trucking_costs[i] = calculate_trucking_costs(demand_state,
                                                            dist_to_demand, 
                                                            annual_demand_quantity,
@@ -227,7 +229,7 @@ def main():
                     road_construction_costs[i] = 0.
                     # If distance to road is 0, just get cheapest trucking strategy
                     if dist_to_road==0:
-                        if plant_type == "Hydrogen":
+                        if plant_type == "hydrogen":
                             trucking_costs[i], trucking_states[i] =\
                                 cheapest_trucking_strategy(demand_state,
                                                             annual_demand_quantity,
@@ -238,7 +240,7 @@ def main():
                                                             conversion_params_filepath,
                                                             transport_params_filepath,
                                                             )
-                        elif plant_type == "Ammonia":
+                        elif plant_type == "ammonia":
                             trucking_costs[i] = calculate_trucking_costs(demand_state,
                                                            dist_to_demand, 
                                                            annual_demand_quantity,
@@ -252,7 +254,7 @@ def main():
 
                 # Calculate costs of constructing a pipeline to the hexagon if allowed
                 if needs_pipeline_construction== True:
-                    if plant_type == "Hydrogen":
+                    if plant_type == "hydrogen":
                         pipeline_costs[i], pipeline_type =\
                             cheapest_pipeline_strategy(demand_state,
                                                     annual_demand_quantity,
@@ -263,7 +265,7 @@ def main():
                                                     conversion_params_filepath,
                                                     pipeline_params_filepath,
                                                     )
-                    elif plant_type == "Ammonia":
+                    elif plant_type == "ammonia":
                         pipeline_costs[i], pipeline_type =\
                             calculate_nh3_pipeline_costs(dist_to_demand,
                                                         annual_demand_quantity,
@@ -274,12 +276,13 @@ def main():
                 else:
                     pipeline_costs[i] = np.nan
 
+        print("\nOptimisation complete.\n")
         # Hexagon file updated with each demand center's costs and states
         hexagons[f'{demand_center} road construction costs'] = road_construction_costs # cost of road construction
-        if plant_type == "Hydrogen":
+        if plant_type == "hydrogen":
             hexagons[f'{demand_center} trucking transport and conversion costs'] = trucking_costs # supply conversion, trucking transport, and demand conversion
             hexagons[f'{demand_center} pipeline transport and conversion costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
-        elif plant_type == "Ammonia":
+        elif plant_type == "ammonia":
             hexagons[f'{demand_center} trucking transport costs'] = trucking_costs # cost of trucking transport
             hexagons[f'{demand_center} pipeline transport costs'] = pipeline_costs # cost of supply conversion, pipeline transport, and demand conversion
         hexagons[f'{demand_center} trucking state'] = trucking_states

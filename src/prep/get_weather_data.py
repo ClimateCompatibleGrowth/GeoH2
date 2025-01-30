@@ -80,22 +80,25 @@ def prepare_cutout(min_lon, min_lat, max_lon, max_lat, start_date, end_date):
     cutout.prepare(tmpdir="temp", show_progress=True) # TEMPDIR DEFINITION IS NEW TO FIX ERROR
 
 def main():
-    hexagons = gpd.read_file(str(snakemake.input.hexagons))
-    
-    # Displays information on process as it runs.
-    logging.basicConfig(level=logging.INFO)
+    try:
+        hexagons = gpd.read_file(f"data/hexagons_with_country_{snakemake.wildcards.country}_{snakemake.config['scenario']['plant_type']}.geojson")
+    except:
+        print(f"There is no file called \'hexagons_with_country_{snakemake.wildcards.country}_{snakemake.config['scenario']['plant_type']}.geojson\' in the 'data/' folder. \nRun the necessary rule to produce that file.")
+    else:
+        # Displays information on process as it runs.
+        logging.basicConfig(level=logging.INFO)
 
-    min_lon, min_lat, max_lon, max_lat = calculate_coords(hexagons)
+        min_lon, min_lat, max_lon, max_lat = calculate_coords(hexagons)
 
-    start_weather_year = int(snakemake.wildcards.weather_year)
-    end_weather_year = int(snakemake.wildcards.weather_year)+1
-    start_date = f'{start_weather_year}-01-01'
-    end_date = f'{end_weather_year}-01-01'
+        start_weather_year = int(snakemake.wildcards.weather_year)
+        end_weather_year = int(snakemake.wildcards.weather_year)+int(snakemake.config["years_to_check"])
+        start_date = f'{start_weather_year}-01-01'
+        end_date = f'{end_weather_year}-01-01'
 
-    check_folder_exists("cutouts")
-    check_folder_exists("temp")
+        check_folder_exists("cutouts")
+        check_folder_exists("temp")
 
-    prepare_cutout(min_lon, min_lat, max_lon, max_lat, start_date, end_date)
+        prepare_cutout(min_lon, min_lat, max_lon, max_lat, start_date, end_date)
 
 if __name__ == "__main__":
     main()
