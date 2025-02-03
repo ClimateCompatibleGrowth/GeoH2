@@ -13,3 +13,4 @@ gurobi.log
 # to be deleted once finished
 testing.py
 hold.py
+/parameters/
