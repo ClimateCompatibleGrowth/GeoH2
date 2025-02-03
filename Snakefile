@@ -7,10 +7,6 @@ wildcard_constraints:
     weather_year = '(19[4-9]\d|20[0-1]\d|202[0-3])',
     plant_type = str()
 
-# rule to delete all necessary files to allow reruns
-rule clean:
-    shell: 'rm -r cutouts/*.nc data/*.geojson resources/*.geojson results/*.geojson temp/*.nc results/*.csv plots/'
-    
 # bulk run rule to run all countries and years listed in config file
 rule optimise_all:
    input:

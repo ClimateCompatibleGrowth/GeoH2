@@ -8,8 +8,8 @@ However, the code is written in a modular way to allow further commodities to be
 
 The model outputs the levelised cost (LC) of the specified commodity at the specified demand location including production, storage, transport, and conversion costs from each production location. 
 
-In the code provided, the use case of hydrogen production in Namibia is provided as an example.
-Parameter references for this case are attached.
+In the code provided, the use case of hydrogen and ammonia production in Namibia is provided as an example.
+Parameter references for the hydrogen case are attached.
 However, as the code is written in a generalized way, it is possible to analyse all sorts of regions.
 
 GeoX builds upon a preliminary code iteration produced by Leander Müller, available under a CC-BY-4.0 licence: [https://github.com/leandermue/GEOH2](https://github.com/leandermue/GEOH2).
@@ -50,8 +50,6 @@ For the `plant_optimization` rule to work, you will need a solver installed on y
 You can use any solver that works with [PyPSA](https://pypsa.readthedocs.io/en/latest/installation.html), such as [Cbc](https://github.com/coin-or/Cbc), a free, open-source solver, or [Gurobi](https://www.gurobi.com/), a commerical solver with free academic licenses available. 
 Install your solver of choice following the instructions for use with Python and your operating system in the solver's documentation. 
 
-In `scripts/plant_optimization.py` line 160, the solver is set to `gurobi`. This must be changed if you choose to use a different solver.
-
 > [!NOTE]
 > Snakemake uses Cbc as a solver by default. 
 > This will be installed upon environment setup. 
@@ -66,10 +64,10 @@ GeoX has two types of input data: (1) spatial input data as a hexagon shapefile;
 
 ## 1) Prepare input hexagons 
 First, prepare spatial input data as a set of hexagons using the [H3 standard](https://h3geo.org/).
-These hexagons are provided in the repo for the illustrative case study of Namibia.
+These hexagons are provided in the repository for the illustrative case study of Namibia.
 To analyse a different area of interest, the hexagon file needs to be changed, but needs to follow the logic of the one provided. 
 
-A full walkthrough on making these hexagons, including tools to create them, are available in the [GeoH2-data-prep](https://github.com/ClimateCompatibleGrowth/GeoH2-data-prep) repo.
+A full walkthrough on making these hexagons, including tools to create them, are available in the [GeoH2-data-prep](https://github.com/ClimateCompatibleGrowth/GeoH2-data-prep) repository.
 The hexagon file needs to have the following attributes:
 
   - waterbody_dist: Distance to selected waterbodies in area of interest
@@ -80,7 +78,7 @@ The hexagon file needs to have the following attributes:
   - theo_pv: Theoretical potential of standardized PV plants (can be determined with [GLAES](https://github.com/FZJ-IEK3-VSA/glaes))
   - theo_wind: Theoretical potential of standardized wind turbines (can be determined with [GLAES](https://github.com/FZJ-IEK3-VSA/glaes))
 
-The [ccg-spider](https://github.com/carderne/ccg-spider) repo can be used to combine different spatial data into standard H3 hexagons.
+The [ccg-spider](https://github.com/carderne/ccg-spider) repository can be used to combine different spatial data into standard H3 hexagons.
 Once you have created a hexagon file with these features, save it in the `data` folder as `hex_final_[COUNTRY ISO CODE].geojson`. 
 
 > [!IMPORTANT]
@@ -92,11 +90,12 @@ Required input parameters include the spatial area of interest, total annual dem
 These values can be either current values or projected values for a single snapshot in time. 
 The parameter values for running the model can be specified in a set of Excel files in the `parameters` folder.
 
-- **Basic plant:** The `basic_[commodity]_plant` folder contains several csv files containing the global parameters for optimizing the plant design. 
+- **Basic plant:** The `basic_[COMMODITY ABBREVIATION]_plant` folder contains several csv files containing the global parameters for optimizing the plant design. 
 All power units are MW and all energy units are MWh. 
 For more information on these parameters, refer to the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/components.html).
 
 > [!IMPORTANT]
+> `COMMODITY ABBREVIATION` can be 'h2' or 'nh3' for current commodities. 
 > The excel files must be kept in a folder with the commodity name within another folder with the title matching the Country ISO Code. 
 > As currently implemented, the commodity must be either "hydrogen" or "ammonia".
 > For the illustrative case of Namibia, we have them in a folder titled "NA" with two sub-folders "hydrogen" and "ammonia".
@@ -119,7 +118,7 @@ If multiple forms of the commodity are demanded in one location, differentiate t
 ___
 
 # Running GeoX with Snakemake
-Once you've done the repo setup and prepared your input data, you're ready to run GeoX!
+Once you've done the repository setup and prepared your input data, you're ready to run GeoX!
 
 This repository uses [Snakemake](https://snakemake.readthedocs.io/en/stable/) to automate its workflow (for a gentle introduction to Snakemake, see [Getting Started with Snakemake](https://carpentries-incubator.github.io/workflows-snakemake/) on The Carpentries Incubator).
 
@@ -163,27 +162,13 @@ Snakemake requires a specification of the `NUMBER OF CORES TO BE USED` when you 
 Each rule has a different expected run time:
 - The `get_weather_data` rule, depending on country size and your internet connection, could take from a few minutes to several hours to run. 
 Ensure that you have space on your computer to store the data, which can be several GB.
-- The `optimize_hydrogen_plant` rule, depending on country size and the number of demand centers, could take from several minutes to several hours to run.
-- The `optimize_transport_and_conversion` rule, depending on country size, should take a few minutes to run. 
+- The `optimize_plant` rule, depending on country size and the number of demand centers, could take from several minutes to several hours to run.
+- The `optimize_transport` rule, depending on country size, should take a few minutes to run. 
 - All other rules take a few seconds to run.
 
-### 1) Clean up the workspace
+### 1) Get weather data (if needed)
 
-> [!WARNING]
-> This rule does not work on Windows yet. Please manually remove the files you need to.
-
-This is the clean-up rule. We're teaching you about it first because it can be useful to clean up the space before starting a new run.
-
-This rule will remove all the files that the following rules will create, as well as the `hex_final_[COUNTRY ISO CODE].geojson` input file.
-This allows for a quicker transition to analyse more data and to clear up space. 
-Make sure you save the files that you need elsewhere before entering the following rule into the terminal:
-```
-snakemake -j [NUMBER OF CORES TO BE USED] clean
-```
-
-### 2) Get weather data (if needed)
-
-If you already have weather data for your area of interest, go right to step 3!
+If you already have weather data for your area of interest, just use step 2!
 If not, you need to run two rules.
 First, run the prep rule to: (1) assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country; and (2) drop any duplicated hexagons that do not belong to the country that is be run for.
 ```
@@ -195,7 +180,7 @@ Then, run the weather data which will download the data you need from the CDS AP
 snakemake -j [NUMBER OF CORES TO BE USED] run_weather
 ```
 
-### 3) Run optimisation or mapping rules
+### 2) Run optimisation or mapping rules
 
 Finally, run the GeoX optimisation process. 
 These rules are used to run the whole process without having go through each rule step-by-step.
@@ -214,11 +199,11 @@ ___
 # Definitions of all rules
 
 While all rules are discussed here for completeness, **you do not need to enter each rule one-by-one**. 
-You can simply run one of the optimisation or mapping rules, and Snakemake will ensure that all required rules are completed to achieve this. 
+You can simply run one of the optimization or mapping rules, and Snakemake will ensure that all required rules are completed to achieve this. 
 Please refer to the steps in the previous section for most usages.
 
 ### `prep_main` rule
-This will assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country. As well as, drop any duplicated hexagons that do not belong to the country that is be run for.
+This will assign country-specific interest rates, technology lifetimes, and heat and electricity prices from `country_parameters.xlsx` to different hexagons based on their country. As well as, drop any duplicated hexagons that do not belong to the country that is to be run for.
 ```
 snakemake -j [NUMBER OF CORES TO BE USED] run_prep
 ```
@@ -237,14 +222,14 @@ snakemake -j [NUMBER OF CORES TO BE USED] resources/hex_transport_[COUNTRY ISO C
 ```
 
 ### `calculate_water_costs` rule
-This will alculate water costs from the ocean and freshwater bodies for commodity production in each hexagon using `parameters/technology_parameters.xlsx` and `parameters/country_parameters.xlsx`.
+This will calculate water costs from the ocean and freshwater bodies for commodity production in each hexagon using `parameters/technology_parameters.xlsx` and `parameters/country_parameters.xlsx`.
 ```
 snakemake -j [NUMBER OF CORES TO BE USED] resources/hex_water_[COUNTRY ISO CODE].geojson
 ```
 
 ### `optimize_plant` rule
 This will design a plant to meet the commodity demand profile for each demand center for each transportation method to each demand center. 
-Ensure that you have specified your plant parameters in the `parameters/basic_[commodity]_plant` folder, your investment parameters in `parameters/investment_parameters.xlsx`, and your demand centers in `parameters/demand_parameters.xlsx`.
+Ensure that you have specified your plant parameters in the `parameters/basic_[COMMODITY ABBREVIATION]_plant` folder, your investment parameters in `parameters/investment_parameters.xlsx`, and your demand centers in `parameters/demand_parameters.xlsx`.
 ```
 snakemake -j [NUMBER OF CORES TO BE USED] resources/hex_lcoh_[COUNTRY ISO CODE]_[WEATHER YEAR].geojson
 ```
@@ -311,7 +296,7 @@ ___
 
 This repository includes sample parameters for a hydrogen production case in Namibia.
 References for these parameters are included in the tables below for reference.
-For the results of this case, please refer to the model MethodsX article: https://doi.org/10.1016/j.mex.2024.102660. 
+For the results of this case, please refer to the GeoH2 model MethodsX article: https://doi.org/10.1016/j.mex.2024.102660. 
 
 **Green hydrogen plant parameters:**
 
