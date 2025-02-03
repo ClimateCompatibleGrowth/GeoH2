@@ -1,14 +1,14 @@
 scenario:
-  country: ['DJ']
+  country: ['DJ','KE']
   weather_year: [2022]
   # Can be 'hydrogen' or 'ammonia'
-  plant_type: 'hydrogen'
+  plant_type: 'ammonia'
 
 # Change to a number that would be added to the 'weather_year' above and used as
 # the end weather year date
 years_to_check: 1
 # Hydrogen uses 'H' freq and ammonia uses '3H' freq
-freq: 'H'
+freq: '3H'
 
 # Generators
 # Additional generators should be added in the same style as Solar and Wind are
