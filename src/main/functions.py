@@ -68,7 +68,7 @@ def calculate_trucking_costs(transport_state, distance, quantity, interest, tran
 
     spec_capex_trailor = transport_params['Spec capex trailer (euros)']
     spec_opex_trailor =transport_params['Spec opex trailer (% of capex/a)']
-    net_capacity = transport_params['Net capacity (kg of product)']
+    net_capacity = transport_params['Net capacity (kg of commodity)']
     trailor_lifetime = transport_params['Trailer lifetime (a)']
     loading_unloading_time = transport_params['Loading unloading time (h)']
 

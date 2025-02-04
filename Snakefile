@@ -5,7 +5,6 @@ wildcard_constraints:
     country = '[A-Z]{2}',
     # ERA5 weather year (1940-2023)
     weather_year = '(19[4-9]\d|20[0-1]\d|202[0-3])',
-    plant_type = str()
 
 # bulk run rule to run all countries and years listed in config file
 rule optimise_all:

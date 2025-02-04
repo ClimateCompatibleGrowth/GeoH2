@@ -3,7 +3,7 @@ Created on Tue Aug 29th 2023
 
 @author: Alycia Leonard, University of Oxford, alycia.leonard@eng.ox.ac.uk
 
-Cost by hydrogen plant component
+Cost by commodity plant component
 
 Add attributes to hex file for cost of each component
 """

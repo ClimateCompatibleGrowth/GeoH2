@@ -1,16 +1,15 @@
-__pycache__
+# Inputs
 cutouts/
 data/*
+
+# Outputs
 resources/
 results/
 plots/
+
+# Misc
+__pycache__
 **/.DS_Store
 .DS_Store
 temp/
 .snakemake/
-gurobi.log
-
-# to be deleted once finished
-testing.py
-hold.py
-/parameters/

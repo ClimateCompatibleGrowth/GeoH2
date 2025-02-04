@@ -5,7 +5,7 @@ Created on Sun Feb 26 11:47:57 2023
 @author: Claire Halloran, University of Oxford
 
 Includes code from Nicholas Salmon, University of Oxford, for optimizing
-hydrogen plant capacity.
+the commodity's plant capacity.
 
 """
 
@@ -21,18 +21,18 @@ from network import Network, nh3_pyomo_constraints
 
 def get_demand_schedule(quantity, start_date, end_date, transport_state, transport_params_filepath, freq):
     '''
-    Calculates hourly product demand for truck shipment and pipeline transport.
+    Calculates hourly commodity demand for truck shipment and pipeline transport.
 
     Parameters
     ----------
     quantity : float
-        annual amount of product to transport in kilograms.
+        annual amount of commodity to transport in kilograms.
     start_date: string
         start date for demand schedule in the format YYYY-MM-DD.
     end_date: string
         end date for demand schedule in the format YYYY-MM-DD.
     transport_state : string
-        state product is transported in, one of '500 bar', 'LH2', 'LOHC', or 'NH3'.
+        state commodity is transported in, one of '500 bar', 'LH2', 'LOHC', or 'NH3'.
     transport_params_filepath : string
         path to transport_parameters.xlsx file
 
@@ -73,7 +73,7 @@ def get_demand_schedule(quantity, start_date, end_date, transport_state, transpo
                                             index_col = 'Parameter'
                                             ).squeeze('columns')
 
-        truck_capacity = transport_params['Net capacity (kg of product)']
+        truck_capacity = transport_params['Net capacity (kg of commodity)']
 
         # schedule for trucking
         annual_deliveries = quantity/truck_capacity
@@ -200,7 +200,7 @@ def get_h2_results(n, generators):
     Returns
     -------
     lc : float
-        levelized cost per kg product.
+        levelized cost per kg commodity.
     generator_capactities : dictionary
         contains each generator with their optimal capacity in MW.
     electrolyzer_capacity: float
@@ -235,7 +235,7 @@ def get_nh3_results(n, generators):
     Returns
     -------
     lc : float
-        levelized cost per kg product.
+        levelized cost per kg commodity.
     generator_capactities : dictionary
         contains each generator with their optimal capacity in MW.
     electrolyzer_capacity: float

@@ -5,7 +5,7 @@ Created on Wed Apr  5 13:26:19 2023
 
 @author: Claire Halloran, University of Oxford
 
-Water costs for hydrogen production in each hexagon
+Water costs for commodity production in each hexagon
 
 
 """
@@ -23,7 +23,7 @@ def main():
     water_data = pd.read_excel(tech_params_filepath, sheet_name='Water', index_col='Parameter').squeeze("columns")
     country_params = pd.read_excel(country_params_filepath, index_col='Country')
 
-    # Water cost for each hexagon for each kg product produced
+    # Water cost for each hexagon for each kg commodity produced
 
     # Water cost related variables
     h2o_costs_dom_water_bodies = np.empty(len(hexagons))
@@ -34,7 +34,7 @@ def main():
     electricity_demand_ocean_h2o_treatment = water_data['Ocean water treatment electricity demand (kWh/m3)']
     water_transport_costs = water_data['Water transport cost (euros/100 km/m3)']
     water_spec_cost = water_data['Water specific cost (euros/m3)']
-    water_demand = water_data['Water demand  (L/kg of product)']
+    water_demand = water_data['Water demand  (L/kg of commodity)']
     elec_price = country_params['Electricity price (euros/kWh)'].iloc[0]
     
     # Loop through all hexagons

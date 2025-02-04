@@ -7,7 +7,7 @@ Created on Wed Apr  5 13:44:32 2023
 
 Total hydrogen cost
 
-Bring together all previous data to calculate lowest-cost hydrogen
+Bring together all previous data to calculate lowest-cost of commodity
 """
 
 #%% identify lowest-cost strategy: trucking vs. pipeline

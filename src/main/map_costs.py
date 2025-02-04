@@ -5,7 +5,7 @@ Created on Thu Apr 27 11:14:48 2023
 
 @author: Claire Halloran, University of Oxford
 
-This script visualizes the spatial cost of hydrogen for each demand center.
+This script visualizes the spatial cost of the commodity for each demand center.
 """
 
 import geopandas as gpd

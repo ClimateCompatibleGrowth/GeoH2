@@ -6,7 +6,7 @@ Created on Sun Mar 26 16:52:59 2023
 @author: Claire Halloran, University of Oxford
 Contains code originally written by Leander MÃ¼ller, RWTH Aachen University
 
-Calculates the cost-optimal hydrogen transportation strategy to the nearest demand center.
+Calculates the cost-optimal commodity transportation strategy to the nearest demand center.
 
 Calculate cost of pipeline transport and demand profile based on optimal size
 
