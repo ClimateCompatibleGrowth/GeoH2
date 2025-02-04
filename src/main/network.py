@@ -154,7 +154,7 @@ def nh3_pyomo_constraints(n, snapshots):
     v) Ramp soft constraints up
     (iv) and (v) just softly suppress ramping so that the model doesn't 'zig-zag', which looks a bit odd on operation.
     Makes very little difference on LCOA. """
-    timestep = 3 # -- is this the same as freq?
+    timestep = int(snakemake.config['freq'][0])
     # The battery constraint is built here - it doesn't need a special function because it doesn't depend on time
     n.model.battery_interface = pm.Constraint(
         rule=lambda model: n.model.link_p_nom['BatteryInterfaceIn'] ==
@@ -181,8 +181,7 @@ def nh3_pyomo_constraints(n, snapshots):
 
 def _nh3_ramp_down(model, t):
     """Places a cap on how quickly the ammonia plant can ramp down"""
-    # if t == 0:
-    timestep = 3 # -- is this the same as freq?
+    timestep = int(snakemake.config['freq'][0])
     if t == model.t.at(1):
 
         old_rate = model.link_p['HB', model.t.at(-1)]
@@ -197,8 +196,7 @@ def _nh3_ramp_down(model, t):
 
 def _nh3_ramp_up(model, t):
     """Places a cap on how quickly the ammonia plant can ramp down"""
-    # if t == 0:
-    timestep = 3 # -- is this the same as freq?
+    timestep = int(snakemake.config['freq'][0])
     if t == model.t.at(1):
         old_rate = model.link_p['HB', model.t.at(-1)]
     else:
