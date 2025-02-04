@@ -1,4 +1,4 @@
-name: geox
+name: geox-new
 channels:
   - conda-forge
   - nodefaults
@@ -7,7 +7,7 @@ channels:
 dependencies:
   - atlite=0.3.0
   - cartopy
-  - gdal=3
+  - gdal
   - geopandas
   - geopy
   - matplotlib

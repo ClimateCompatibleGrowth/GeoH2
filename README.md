@@ -100,15 +100,14 @@ For more information on these parameters, refer to the [PyPSA documentation](htt
 > As currently implemented, the commodity must be either "hydrogen" or "ammonia".
 > For the illustrative case of Namibia, we have them in a folder titled "NA" with two sub-folders "hydrogen" and "ammonia".
 
-- **Conversion parameters:** `conversion_parameters.xlsx` includes parameters related to converting between states of the commodity. This is only needed in the "parameters/hydrogen" folder.
+- **Conversion parameters:** `conversion_parameters.xlsx` includes parameters related to converting between states of the commodity. This is only needed in the "hydrogen" folder.
 
 - **Country parameters:** `country_parameters.xlsx` includes country- and technology-specific interest rates, heat and electricity costs, and asset lifetimes.
     - Interest rates should be expressed as a decimal, e.g. 5% as 0.05.
     - Asset lifetimes should be in years.
 
 - **Demand parameters:** `demand_parameters.xlsx` includes a list of demand centers. 
-For each demand center, its lat-lon location, annual demand, and commodity state for that demand must be specified. 
-If multiple forms of the commodity are demanded in one location, differentiate the demand center name (e.g. Nairobi LH2 and Nairobi NH3) to avoid problems from duplicate demand center names.
+For each demand center, its lat-lon location, annual demand, and commodity state for that demand must be specified.
 
 - **Pipeline parameters:** `pipeline_parameters.xlsx` includes the price, capacity, and lifetime data for different sizes of pipeline.
 

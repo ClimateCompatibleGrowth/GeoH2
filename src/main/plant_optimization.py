@@ -15,9 +15,8 @@ import geopandas as gpd
 import logging
 import numpy as np
 import pandas as pd
-from network import Network, nh3_pyomo_constraints
-# import warnings
-# warnings.filterwarnings("ignore")
+import pyomo.environ as pm
+from network import Network
 
 def get_demand_schedule(quantity, start_date, end_date, transport_state, transport_params_filepath, freq):
     '''
@@ -183,7 +182,7 @@ def solve_model(network_class, solver):
         network_class.n.lopf(solver_name=solver,
             solver_options={'LogToConsole': 0, 'OutputFlag': 0},
             pyomo=True,
-            extra_functionality=nh3_pyomo_constraints,
+            extra_functionality=_nh3_pyomo_constraints,
             )
 
 def get_h2_results(n, generators):
@@ -256,6 +255,68 @@ def get_nh3_results(n, generators):
     # !!! need to save ammonia storage capacity as well
     nh3_storage = n.stores.e_nom_opt['Ammonia']
     return lc, generator_capacities, electrolyzer_capacity, battery_capacity, h2_storage, nh3_storage
+
+def _nh3_pyomo_constraints(n, snapshots):
+    """Includes a series of additional constraints which make the ammonia plant work as needed:
+    i) Battery sizing
+    ii) Ramp hard constraints down (Cannot be violated)
+    iii) Ramp hard constraints up (Cannot be violated)
+    iv) Ramp soft constraints down
+    v) Ramp soft constraints up
+    (iv) and (v) just softly suppress ramping so that the model doesn't 'zig-zag', which looks a bit odd on operation.
+    Makes very little difference on LCOA. """
+    timestep = int(snakemake.config['freq'][0])
+    # The battery constraint is built here - it doesn't need a special function because it doesn't depend on time
+    n.model.battery_interface = pm.Constraint(
+        rule=lambda model: n.model.link_p_nom['BatteryInterfaceIn'] ==
+                        n.model.link_p_nom['BatteryInterfaceOut'] /
+                        n.links.efficiency["BatteryInterfaceOut"])
+
+    # Constrain the maximum discharge of the H2 storage relative to its size
+    time_step_cycle = 4/8760*timestep*0.5  # Factor 0.5 for 3 hour time step, 0.5 for oversized storage
+    n.model.cycling_limit = pm.Constraint(
+        rule=lambda model: n.model.link_p_nom['BatteryInterfaceOut'] ==
+                        n.model.store_e_nom['CompressedH2Store'] * time_step_cycle)
+
+    # The HB Ramp constraints are functions of time, so we need to create some pyomo sets/parameters to represent them.
+    n.model.t = pm.Set(initialize=n.snapshots)
+    n.model.HB_max_ramp_down = pm.Param(initialize=n.links.loc['HB'].ramp_limit_down)
+    n.model.HB_max_ramp_up = pm.Param(initialize=n.links.loc['HB'].ramp_limit_up)
+
+    # Using those sets/parameters, we can now implement the constraints...
+    logging.warning('Pypsa has been overridden - Ramp rates on NH3 plant are included')
+    n.model.NH3_pyomo_overwrite_ramp_down = pm.Constraint(n.model.t, rule=_nh3_ramp_down)
+    n.model.NH3_pyomo_overwrite_ramp_up = pm.Constraint(n.model.t, rule=_nh3_ramp_up)
+    # n.model.NH3_pyomo_penalise_ramp_down = pm.Constraint(n.model.t, rule=_penalise_ramp_down)
+    # n.model.NH3_pyomo_penalise_ramp_up = pm.Constraint(n.model.t, rule=_penalise_ramp_up)
+
+def _nh3_ramp_down(model, t):
+    """Places a cap on how quickly the ammonia plant can ramp down"""
+    timestep = int(snakemake.config['freq'][0])
+    if t == model.t.at(1):
+
+        old_rate = model.link_p['HB', model.t.at(-1)]
+    else:
+        # old_rate = model.link_p['HB', t - 1]
+        old_rate = model.link_p['HB', t - pd.Timedelta(timestep, unit = 'H')]
+
+    return old_rate - model.link_p['HB', t] <= \
+        model.link_p_nom['HB'] * model.HB_max_ramp_down
+    # Note 20 is the UB of the size of the ammonia plant; essentially if x = 0 then the constraint is not active
+
+
+def _nh3_ramp_up(model, t):
+    """Places a cap on how quickly the ammonia plant can ramp down"""
+    timestep = int(snakemake.config['freq'][0])
+    if t == model.t.at(1):
+        old_rate = model.link_p['HB', model.t.at(-1)]
+    else:
+        # old_rate = model.link_p['HB', t - 1]
+        old_rate = model.link_p['HB', t - pd.Timedelta(timestep, unit = 'H')]
+
+
+    return model.link_p['HB', t] - old_rate <= \
+        model.link_p_nom['HB'] * model.HB_max_ramp_up()
 
 if __name__ == "__main__":
     # -- Next two lines to be deleted

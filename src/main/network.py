@@ -1,8 +1,8 @@
 import logging
 import numpy as np
 import pandas as pd
-import pyomo.environ as pm
 import pypsa
+
 from functions import CRF
 
 class Network:
