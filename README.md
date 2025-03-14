@@ -1,3 +1,7 @@
+>[!NOTE]
+>We now have a new repository for you to use! The new [GeoX](https://github.com/ClimateCompatibleGrowth/GeoX.git) repository contains both this repository and the [GeoNH3](https://github.com/ClimateCompatibleGrowth/GeoNH3.git) repository.
+
+
 # GEOH2
 **Geospatial analysis of hydrogen production costs**
 
